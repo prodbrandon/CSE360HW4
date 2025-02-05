@@ -38,8 +38,14 @@ public class AdminHomePage {
 	    Label adminLabel = new Label("Hello, Admin!");
 	    
 	    adminLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+	    
+	    // Button to view the list of users
+	    Button viewUserListButton = new Button("View User List");
+	    viewUserListButton.setOnAction(a -> {
+	    	new ViewUserListPage().show(databaseHelper, primaryStage);
+	    });
 
-	    layout.getChildren().addAll(adminLabel, quitButton);
+	    layout.getChildren().addAll(adminLabel, quitButton, viewUserListButton);
 	    Scene adminScene = new Scene(layout, 800, 400);
 
 	    // Set the scene to primary stage

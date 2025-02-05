@@ -1,9 +1,7 @@
 package databasePart1;
 import java.sql.*;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import application.User;
@@ -55,6 +53,13 @@ public class DatabaseHelper {
 	            + "code VARCHAR(10) PRIMARY KEY, "
 	            + "isUsed BOOLEAN DEFAULT FALSE)";
 	    statement.execute(invitationCodesTable);
+	    
+	    // Create the one-time passwords table
+	    String oneTimePasswordsTable = "CREATE TABLE IF NOT EXISTS OneTimePasswords ("
+	    		+ "userName VARCHAR(255) UNIQUE, "
+	    		+ "oneTimePassword VARCHAR(10) PRIMARY KEY, "
+	    		+ "isUsed BOOLEAN DEFAULT FALSE)";
+	    statement.execute(oneTimePasswordsTable);
 	}
 
 
@@ -187,6 +192,100 @@ public class DatabaseHelper {
 	    } catch (SQLException e) {
 	        e.printStackTrace();
 	    }
+	}
+	
+	// Generates a new one-time password and inserts it into the database
+	public String generateOTP(String userName) {
+		// First check if the userName already has a one-time password
+		String query = "SELECT oneTimePassword FROM OneTimePasswords WHERE userName = ?";
+		
+		try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+			pstmt.setString(1, userName);
+			ResultSet rs = pstmt.executeQuery();
+			
+			if (rs.next()) {
+				return "";
+				//return rs.getString("oneTimePassword");
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		
+		// Generate the one-time password and insert its userName and one-time password
+		String onetimePassword = UUID.randomUUID().toString().substring(0, 10); // Generate a random 10-character code
+		query = "INSERT INTO OneTimePasswords (userName, oneTimePassword) VALUES (?, ?)";
+		
+		try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+			pstmt.setString(1,  userName);
+			pstmt.setString(2,  onetimePassword);
+			pstmt.executeUpdate();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		
+		return onetimePassword;
+	}
+	
+	// Validates a one-time password to check if it is unused and belongs to the user.
+	public boolean validateOTP(String userName, String oneTimePassword) {
+	    String query = "SELECT * FROM OneTimePasswords WHERE userName = ? AND oneTimePassword = ?";
+	    try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+	    	pstmt.setString(1,  userName);
+	        pstmt.setString(2, oneTimePassword);
+	        ResultSet rs = pstmt.executeQuery();
+	        if (rs.next()) {
+	            // Mark the code as used
+	            markOTPAsUsed(oneTimePassword);
+	            return true;
+	        }
+	    } catch (SQLException e) {
+	        e.printStackTrace();
+	    }
+	    return false;
+	}
+		
+	// Remove the one-time password from the database to allow a new one to be generated
+	private void markOTPAsUsed(String oneTimePassword) {
+	    String query = "DELETE FROM OneTimePasswords WHERE oneTimePassword = ?";
+	    try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+	        pstmt.setString(1, oneTimePassword);
+	        pstmt.executeUpdate();
+	    } catch (SQLException e) {
+	        e.printStackTrace();
+	    }
+	}
+	
+	// Updates a password for a given username
+	public void updatePassword(String userName, String password) {
+		String query = "UPDATE cse360users SET password = ? WHERE userName = ?";
+	    try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+	    	pstmt.setString(1, password);
+	        pstmt.setString(2, userName);
+	        pstmt.executeUpdate();
+	    } catch (SQLException e) {
+	        e.printStackTrace();
+	    }
+	}
+	
+	// Returns a list of the users 
+	public List<User> getUsers() {
+		String query = "SELECT userName, password, role FROM cse360users";
+		List<User> users = new ArrayList<>();
+		
+		try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+			ResultSet rs = pstmt.executeQuery();
+			
+			while (rs.next()) {
+				String userName = rs.getString("userName");
+				String password = rs.getString("password");
+				String role = rs.getString("role");
+				users.add(new User(userName, password, role));
+			}
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+		
+		return users;
 	}
 
 	// Closes the database connection and statement.

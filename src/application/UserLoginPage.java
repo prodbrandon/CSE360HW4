@@ -69,10 +69,17 @@ public class UserLoginPage {
                 e.printStackTrace();
             } 
         });
+        
+        // Button to use a one-time password
+        Button oneTimePasswordButton = new Button("Use one-time password");
+        
+        oneTimePasswordButton.setOnAction(a -> {
+        	new UserForgotPasswordPage(databaseHelper).show(primaryStage);
+        });
 
         VBox layout = new VBox(10);
         layout.setStyle("-fx-padding: 20; -fx-alignment: center;");
-        layout.getChildren().addAll(userNameField, passwordField, loginButton, errorLabel);
+        layout.getChildren().addAll(userNameField, passwordField, loginButton, errorLabel, oneTimePasswordButton);
 
         primaryStage.setScene(new Scene(layout, 800, 400));
         primaryStage.setTitle("User Login");
