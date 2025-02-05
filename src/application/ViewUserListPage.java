@@ -11,124 +11,173 @@ import javafx.stage.Stage;
 import java.util.List;
 import java.util.ArrayList;
 
-
-/**
- * AdminPage class represents the user interface for the admin user.
- * This page displays a simple welcome message for the admin.
- */
-
 public class ViewUserListPage {
-	/**
-     * Displays the admin page in the provided primary stage.
-     * @param primaryStage The primary stage where the scene will be displayed.
-     */
-	
-	private String selectedUserName;
-	
+    private String selectedUserName;
+    private Label errorLabel;
+    private String currentUserName; // To track the logged-in admin's username
     
-    public void show(DatabaseHelper databaseHelper, Stage primaryStage) {
-    	VBox layout = new VBox();
-    	
-	    layout.setStyle("-fx-alignment: center; -fx-padding: 20;");
-	    
-	    // label to display the welcome message for the admin
-	    Label adminLabel = new Label("Hello, Admin!");
-	    
-	    adminLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+    public void show(DatabaseHelper databaseHelper, Stage primaryStage, String adminUserName) {
+        this.currentUserName = adminUserName;
+        VBox layout = new VBox(10);
+        layout.setStyle("-fx-alignment: center; -fx-padding: 20;");
+        
+        Label adminLabel = new Label("Hello, Admin!");
+        adminLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
 
-	    layout.getChildren().add(adminLabel);
-	    Scene adminScene = new Scene(layout, 800, 400);
+        errorLabel = new Label("");
+        errorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
 
-	    // Set the scene to primary stage
-	    primaryStage.setScene(adminScene);
-	    primaryStage.setTitle("User Management");
-	    
-	    List<User> users = databaseHelper.getUsers();
-	    ObservableList<User> observableUsers = FXCollections.observableArrayList(users);
-	    
-	    // Display the user's username, password, and role in the list 
-	    ListView<User> userListView = new ListView<>(observableUsers);
-	    userListView.setCellFactory(param -> new ListCell<>() {
-	    	@Override
-	    	protected void updateItem(User user, boolean empty) {
-	    		super.updateItem(user, empty);
-	    		
-	    		if (empty || user == null) {
-	    			setText(null);
-	    		} else {
-	    			setText(user.getUserName() + " : " + user.getPassword() + " : " + user.getRole());
-	    		}
-	    	}
-	    });
-	    userListView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-	    
-	    // Label to display currently selected user
-	    Label selectedUserLabel = new Label("Selected User: None");
-	    
-	    // Update the selected user within the list view
-	    userListView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-	    	if (newSelection != null) {
-	    		selectedUserName = newSelection.getUserName();
-	    		selectedUserLabel.setText("Selected User: " + selectedUserName);
-	    	}
-	    });
-	    
-	    // Check boxes for role adjustment 
-	    // TODO start already checked if the user is that role
-	    CheckBox adminCheckBox = new CheckBox("Admin");
-	    CheckBox studentCheckBox = new CheckBox("Student");
-	    CheckBox reviewerCheckBox = new CheckBox("Reviewer");
-	    CheckBox instructorCheckBox = new CheckBox("Instructor");
-	    CheckBox staffCheckBox = new CheckBox("Staff");
-	    
-	    // HBox to hold the check boxes at the same y-level
-	    HBox roles = new HBox(10, adminCheckBox, studentCheckBox, reviewerCheckBox,
-	    		instructorCheckBox, staffCheckBox);
-	    
-	    // Button to confirm the change roles for a user
-	    Button changeRolesButton = new Button("Change Roles");
-	    changeRolesButton.setOnAction(a -> {
-	    	ArrayList<String> newRoles = new ArrayList<>();
-	    	
-	    	if (adminCheckBox.isSelected()) newRoles.add("Admin");
-	    	if (studentCheckBox.isSelected()) newRoles.add("Student");
-	    	if (reviewerCheckBox.isSelected()) newRoles.add("Reviewer");
-	    	if (instructorCheckBox.isSelected()) newRoles.add("Instructor");
-	    	if (staffCheckBox.isSelected()) newRoles.add("Staff");
-	    	
-	    	// Update the roles in the database 
-	    	// TODO
-	    	
-	    });
-	    
-	    // Label to display generated one-time password
-	    Label oneTimePasswordLabel = new Label(""); ;
-	    oneTimePasswordLabel.setStyle("-fx-font-size: 14px; -fx-font-style: italic;");
-	    
-	    // Button to generate a one-time password
-	    Button oneTimePasswordButton = new Button("Generate OTP");
-	    oneTimePasswordButton.setOnAction(a -> {
-	    	System.out.println(selectedUserName);
-	    	String oneTimePassword = databaseHelper.generateOTP(selectedUserName);
-	    	if (oneTimePassword == "") {
-	    		oneTimePasswordLabel.setText("user already has a one-time password");
-	    	} else {
-	    		oneTimePasswordLabel.setText("one-time password: " + oneTimePassword);
-	    	}
-	    });
-	    
-	    // Button to log the admin out once done updating roles and generating passwords
+        List<User> users = databaseHelper.getUsers();
+        ObservableList<User> observableUsers = FXCollections.observableArrayList(users);
+        
+        ListView<User> userListView = new ListView<>(observableUsers);
+        userListView.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(User user, boolean empty) {
+                super.updateItem(user, empty);
+                if (empty || user == null) {
+                    setText(null);
+                } else {
+                    setText(user.getUserName() + " : " + user.getPassword() + " : " + user.getRole());
+                }
+            }
+        });
+        userListView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        
+        Label selectedUserLabel = new Label("Selected User: None");
+        
+        CheckBox adminCheckBox = new CheckBox("Admin");
+        CheckBox studentCheckBox = new CheckBox("Student");
+        CheckBox reviewerCheckBox = new CheckBox("Reviewer");
+        CheckBox instructorCheckBox = new CheckBox("Instructor");
+        CheckBox staffCheckBox = new CheckBox("Staff");
+        
+        HBox rolesBox = new HBox(10);
+        rolesBox.setStyle("-fx-alignment: center;");
+        rolesBox.getChildren().addAll(adminCheckBox, studentCheckBox, reviewerCheckBox,
+                instructorCheckBox, staffCheckBox);
+        
+        userListView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                selectedUserName = newSelection.getUserName();
+                selectedUserLabel.setText("Selected User: " + selectedUserName);
+                errorLabel.setText("");
+                
+                String currentRoles = newSelection.getRole();
+                
+                // Reset all checkboxes
+                adminCheckBox.setSelected(false);
+                studentCheckBox.setSelected(false);
+                reviewerCheckBox.setSelected(false);
+                instructorCheckBox.setSelected(false);
+                staffCheckBox.setSelected(false);
+                
+                // Set checkboxes based on current roles
+                if (currentRoles != null) {
+                    String[] roleArray = currentRoles.split(",");
+                    for (String role : roleArray) {
+                        switch (role.trim().toLowerCase()) {
+                            case "admin":
+                                adminCheckBox.setSelected(true);
+                                break;
+                            case "student":
+                                studentCheckBox.setSelected(true);
+                                break;
+                            case "reviewer":
+                                reviewerCheckBox.setSelected(true);
+                                break;
+                            case "instructor":
+                                instructorCheckBox.setSelected(true);
+                                break;
+                            case "staff":
+                                staffCheckBox.setSelected(true);
+                                break;
+                        }
+                    }
+                }
+                
+                // If this is the current admin user, disable the admin checkbox
+                if (selectedUserName.equals(currentUserName)) {
+                    adminCheckBox.setDisable(true);
+                } else {
+                    adminCheckBox.setDisable(false);
+                }
+            }
+        });
+        
+        Button changeRolesButton = new Button("Change Roles");
+        changeRolesButton.setOnAction(e -> {
+            if (selectedUserName == null || selectedUserName.isEmpty()) {
+                errorLabel.setText("Please select a user first");
+                return;
+            }
+            
+            ArrayList<String> newRoles = new ArrayList<>();
+            
+            if (adminCheckBox.isSelected()) newRoles.add("admin");
+            if (studentCheckBox.isSelected()) newRoles.add("student");
+            if (reviewerCheckBox.isSelected()) newRoles.add("reviewer");
+            if (instructorCheckBox.isSelected()) newRoles.add("instructor");
+            if (staffCheckBox.isSelected()) newRoles.add("staff");
+            
+            if (newRoles.isEmpty()) {
+                errorLabel.setText("Please select at least one role");
+                return;
+            }
+            
+            // Check if trying to remove admin role from last admin
+            if (databaseHelper.isLastAdmin(selectedUserName) && !newRoles.contains("admin")) {
+                errorLabel.setText("Cannot remove admin role from the last admin user");
+                return;
+            }
+            
+            databaseHelper.updateUserRoles(selectedUserName, newRoles, currentUserName);
+            
+            List<User> updatedUsers = databaseHelper.getUsers();
+            userListView.setItems(FXCollections.observableArrayList(updatedUsers));
+            
+            errorLabel.setStyle("-fx-text-fill: green;");
+            errorLabel.setText("Roles updated successfully");
+        });
+        
+        Label oneTimePasswordLabel = new Label("");
+        oneTimePasswordLabel.setStyle("-fx-font-size: 14px; -fx-font-style: italic;");
+        
+        Button oneTimePasswordButton = new Button("Generate OTP");
+        oneTimePasswordButton.setOnAction(e -> {
+            if (selectedUserName == null || selectedUserName.isEmpty()) {
+                errorLabel.setText("Please select a user first");
+                return;
+            }
+            String oneTimePassword = databaseHelper.generateOTP(selectedUserName);
+            if (oneTimePassword.isEmpty()) {
+                oneTimePasswordLabel.setText("User already has a one-time password");
+            } else {
+                oneTimePasswordLabel.setText("One-time password: " + oneTimePassword);
+            }
+        });
+        
         Button quitButton = new Button("Logout");
-	    quitButton.setOnAction(a -> {
-	    	new SetupLoginSelectionPage(databaseHelper).show(primaryStage);
-	    });
-	    
-	    // HBox to hold the buttons at the same y-level
-	    HBox buttons = new HBox(10, changeRolesButton, oneTimePasswordButton, quitButton);
-	    
-	    // HBox to hold the roles and buttons
-	    HBox rolesAndButtons = new HBox(20, roles, buttons);
-	    
-	    layout.getChildren().addAll(userListView, selectedUserLabel, rolesAndButtons, oneTimePasswordLabel);
+        quitButton.setOnAction(e -> {
+            new SetupLoginSelectionPage(databaseHelper).show(primaryStage);
+        });
+        
+        HBox buttons = new HBox(10);
+        buttons.setStyle("-fx-alignment: center;");
+        buttons.getChildren().addAll(changeRolesButton, oneTimePasswordButton, quitButton);
+        
+        layout.getChildren().addAll(
+            adminLabel,
+            userListView,
+            selectedUserLabel,
+            rolesBox,
+            buttons,
+            errorLabel,
+            oneTimePasswordLabel
+        );
+
+        Scene adminScene = new Scene(layout, 800, 600);
+        primaryStage.setScene(adminScene);
+        primaryStage.setTitle("User Management");
     }
 }

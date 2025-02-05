@@ -1,55 +1,42 @@
 package application;
 
 import databasePart1.DatabaseHelper;
-import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-
-/**
- * AdminPage class represents the user interface for the admin user.
- * This page displays a simple welcome message for the admin.
- */
-
 public class AdminHomePage {
-	/**
-     * Displays the admin page in the provided primary stage.
-     * @param primaryStage The primary stage where the scene will be displayed.
-     */
-	private final DatabaseHelper databaseHelper;
+    private final DatabaseHelper databaseHelper;
+    private final String adminUserName;
 
-    public AdminHomePage(DatabaseHelper databaseHelper) {
+    public AdminHomePage(DatabaseHelper databaseHelper, String userName) {
         this.databaseHelper = databaseHelper;
+        this.adminUserName = userName;
     }
-	
+
     public void show(Stage primaryStage) {
-    	VBox layout = new VBox();
-    	
-    	Button quitButton = new Button("Logout");
-	    quitButton.setOnAction(a -> {
-	    	new SetupLoginSelectionPage(databaseHelper).show(primaryStage);
-	    });
-    	
-	    layout.setStyle("-fx-alignment: center; -fx-padding: 20;");
-	    
-	    // label to display the welcome message for the admin
-	    Label adminLabel = new Label("Hello, Admin!");
-	    
-	    adminLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
-	    
-	    // Button to view the list of users
-	    Button viewUserListButton = new Button("View User List");
-	    viewUserListButton.setOnAction(a -> {
-	    	new ViewUserListPage().show(databaseHelper, primaryStage);
-	    });
+        VBox layout = new VBox();
+        
+        Button quitButton = new Button("Logout");
+        quitButton.setOnAction(a -> {
+            new SetupLoginSelectionPage(databaseHelper).show(primaryStage);
+        });
+        
+        layout.setStyle("-fx-alignment: center; -fx-padding: 20;");
+        
+        Label adminLabel = new Label("Hello, Admin!");
+        adminLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        
+        Button viewUserListButton = new Button("View User List");
+        viewUserListButton.setOnAction(a -> {
+            new ViewUserListPage().show(databaseHelper, primaryStage, adminUserName);
+        });
 
-	    layout.getChildren().addAll(adminLabel, quitButton, viewUserListButton);
-	    Scene adminScene = new Scene(layout, 800, 400);
+        layout.getChildren().addAll(adminLabel, quitButton, viewUserListButton);
+        Scene adminScene = new Scene(layout, 800, 400);
 
-	    // Set the scene to primary stage
-	    primaryStage.setScene(adminScene);
-	    primaryStage.setTitle("Admin Page");
+        primaryStage.setScene(adminScene);
+        primaryStage.setTitle("Admin Page");
     }
 }
