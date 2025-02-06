@@ -105,7 +105,9 @@ public class ViewUserListPage {
                 String currentRoles = newSelection.getRole();
                 
                 // Reset all checkboxes
+                adminCheckBox.setDisable(false);
                 adminCheckBox.setSelected(false);
+                deleteUser.setDisable(false);
                 studentCheckBox.setSelected(false);
                 reviewerCheckBox.setSelected(false);
                 instructorCheckBox.setSelected(false);
@@ -118,6 +120,7 @@ public class ViewUserListPage {
                         switch (role.trim().toLowerCase()) {
                             case "admin":
                                 adminCheckBox.setSelected(true);
+                                adminCheckBox.setDisable(true);
                                 break;
                             case "student":
                                 studentCheckBox.setSelected(true);
@@ -139,7 +142,7 @@ public class ViewUserListPage {
                 if (selectedUserName.equals(currentUserName)) {
                     adminCheckBox.setDisable(true);
                 } else {
-                    adminCheckBox.setDisable(false);
+                    //adminCheckBox.setDisable(false);
                 }
             }
         });

@@ -326,6 +326,7 @@ public class DatabaseHelper {
             e.printStackTrace();
         }
     }
+    
 
     public void closeConnection() {
         try {
