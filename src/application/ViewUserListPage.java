@@ -46,6 +46,45 @@ public class ViewUserListPage {
         
         Label selectedUserLabel = new Label("Selected User: None");
         
+        Button deleteUser = new Button("Delete User");
+        deleteUser.setOnAction(e -> {
+        	User selectedUser = userListView.getSelectionModel().getSelectedItem();
+        	if(selectedUser != null && selectedUser.getRole().toLowerCase().contains("admin")) {
+        		deleteUser.setDisable(true);
+        		errorLabel.setText("Can't delete other admins");
+        		return;
+        	}
+        	if(selectedUserName == null || selectedUserName.isEmpty()) {
+        		errorLabel.setText("Choose a user first");
+        		return;
+        	}
+        	if(selectedUserName.equals(currentUserName)) {
+        		errorLabel.setText("Can't delete your own account.");
+        		return;
+        	}
+        	if(databaseHelper.isLastAdmin(selectedUserName)) {
+        		errorLabel.setText("Can't delete the last admin.");
+        		return;
+        	}
+        	TextInputDialog confirmation = new TextInputDialog();
+        	confirmation.setTitle("Confirm this deletion");
+        	confirmation.setHeaderText("Are you sure you want to delete " + selectedUserName + "?");
+        	confirmation.setContentText("Put in 'Yes' to do so:");
+        	confirmation.showAndWait().ifPresent(response -> {
+        		if(response.equals("Yes")) {
+        			databaseHelper.deleteUser(selectedUserName);
+        			userListView.setItems(FXCollections.observableArrayList(databaseHelper.getUsers()));
+        			errorLabel.setStyle("-fx-text-fill: green;");
+        			errorLabel.setText("User has been deleted");
+        			selectedUserLabel.setText("Selected User: None");
+        			selectedUserName = null;
+        		}
+        		else {
+        			errorLabel.setText("Deleting user did not work");
+        		}
+        	});
+        });
+        
         CheckBox adminCheckBox = new CheckBox("Admin");
         CheckBox studentCheckBox = new CheckBox("Student");
         CheckBox reviewerCheckBox = new CheckBox("Reviewer");
@@ -164,7 +203,7 @@ public class ViewUserListPage {
         
         HBox buttons = new HBox(10);
         buttons.setStyle("-fx-alignment: center;");
-        buttons.getChildren().addAll(changeRolesButton, oneTimePasswordButton, quitButton);
+        buttons.getChildren().addAll(changeRolesButton, oneTimePasswordButton, quitButton, deleteUser);
         
         layout.getChildren().addAll(
             adminLabel,

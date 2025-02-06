@@ -30,7 +30,7 @@ public class DatabaseHelper {
             connection = DriverManager.getConnection(DB_URL, USER, PASS);
             statement = connection.createStatement();
             // To reset database, uncomment next line:
-            // statement.execute("DROP ALL OBJECTS");
+            //statement.execute("DROP ALL OBJECTS");
             createTables();
         } catch (ClassNotFoundException e) {
             System.err.println("JDBC Driver not found: " + e.getMessage());
@@ -78,6 +78,24 @@ public class DatabaseHelper {
             pstmt.executeUpdate();
             printAllUsers();
         }
+    }
+    
+    public void deleteUser(String userName) {
+    	String query = "DELETE FROM cse360users WHERE userName = ?";
+    	try(PreparedStatement pstmt = connection.prepareStatement(query)) {
+    		pstmt.setString(1,  userName);;
+    		int rows = pstmt.executeUpdate();
+    		if(rows > 0) {
+    			System.out.println("User " + userName + "has been deleted.");
+    		}
+    		else {
+    			System.out.println("No user found with username: " + userName);
+    		}
+    	}
+    	catch (SQLException e) {
+    		System.err.println("Problem deleting the user " + userName + ": " + e.getMessage());
+    		e.printStackTrace();
+    	}
     }
 
     public boolean login(User user) throws SQLException {

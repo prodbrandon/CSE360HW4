@@ -39,4 +39,5 @@ public class AdminHomePage {
         primaryStage.setScene(adminScene);
         primaryStage.setTitle("Admin Page");
     }
+    
 }
