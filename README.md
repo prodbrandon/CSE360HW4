@@ -85,6 +85,14 @@ The following are all files and directories that comprise this repo:
 - Click on the provided links for each file and directory to view them directly on GitHub.
 - For compiled Java class files, you can download them and use a Java decompiler to view their contents.
 
+## Group Members
+ - Aryan Srivastava
+ - Brandon Lim
+ - Journey Hancock
+ - Saahir Khan
+ - Sahil Pai
+ - Sourish Tiwari
+
 
 ## License
 
