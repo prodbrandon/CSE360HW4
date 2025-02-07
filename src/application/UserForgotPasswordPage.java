@@ -35,9 +35,8 @@ public class UserForgotPasswordPage {
         Label errorLabel = new Label();
         errorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
 
+        // Button to let the user choose to move on to updating their password
         Button updatePasswordButton = new Button("Update Password");
-    
-        
         updatePasswordButton.setOnAction(a -> {
         	// Retrieve user input
             String userName = userNameField.getText();

@@ -80,6 +80,7 @@ public class DatabaseHelper {
         }
     }
     
+    // Delete a user from the database
     public void deleteUser(String userName) {
     	String query = "DELETE FROM cse360users WHERE userName = ?";
     	try(PreparedStatement pstmt = connection.prepareStatement(query)) {
@@ -176,6 +177,8 @@ public class DatabaseHelper {
         }
     }
 
+    
+    // Generate a one-time password for a certain username only if it does not already have one
     public String generateOTP(String userName) {
         String query = "SELECT oneTimePassword FROM OneTimePasswords WHERE userName = ?";
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
@@ -202,6 +205,7 @@ public class DatabaseHelper {
         }
     }
 
+    // Ensure a one-time password exists and is associated with the given username
     public boolean validateOTP(String userName, String oneTimePassword) {
         String query = "SELECT * FROM OneTimePasswords WHERE userName = ? AND oneTimePassword = ?";
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
@@ -218,6 +222,7 @@ public class DatabaseHelper {
         return false;
     }
 
+    // Remove a used one-time password
     private void markOTPAsUsed(String oneTimePassword) {
         String query = "DELETE FROM OneTimePasswords WHERE oneTimePassword = ?";
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
@@ -228,6 +233,7 @@ public class DatabaseHelper {
         }
     }
 
+    // Determine if there is only one admin left or not 
     public boolean isLastAdmin(String userName) {
         String query = "SELECT COUNT(*) FROM cse360users WHERE role LIKE '%admin%'";
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
@@ -242,6 +248,7 @@ public class DatabaseHelper {
         return false;
     }
 
+    // Update the roles for a user
     public void updateUserRoles(String userName, List<String> roles, String currentUserName) {
         // Check if this user is the last admin
         boolean isLastAdmin = isLastAdmin(userName);
@@ -279,6 +286,7 @@ public class DatabaseHelper {
         }
     }
 
+    // Update the password for a user
     public void updatePassword(String userName, String password) {
         String query = "UPDATE cse360users SET password = ? WHERE userName = ?";
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
@@ -290,6 +298,7 @@ public class DatabaseHelper {
         }
     }
 
+    // Return user objects of all the users in the database
     public List<User> getUsers() {
         String query = "SELECT userName, password, role FROM cse360users";
         List<User> users = new ArrayList<>();

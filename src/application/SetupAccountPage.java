@@ -35,6 +35,7 @@ public class SetupAccountPage {
     	// Input fields for userName, password, and invitation code
     	ToggleGroup group = new ToggleGroup();
     	
+    	// Buttons to let a user select a role
     	RadioButton admin = new RadioButton("Admin");
     	RadioButton student = new RadioButton("Student");
     	RadioButton instructor = new RadioButton("Instructor");
@@ -47,6 +48,7 @@ public class SetupAccountPage {
     	staff.setToggleGroup(group);
     	reviewer.setToggleGroup(group);
     	
+    	// Set a user's role based on their selection
     	admin.setOnAction(e -> {
     		if (admin.isSelected()) {
     			buttonVal = "admin";

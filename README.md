@@ -67,10 +67,18 @@ The following are all files and directories that comprise this repo:
 ## Video Directories
 
 1. **meetings**
-   - Directory containing all of Wednesday 21's scrum meetings following the agile development protocol.
+   - **Description:** The meetings are uploaded to Google Drive because of GitHub size limits.
+   - **Access:** [View meetings](https://drive.google.com/drive/folders/1NV55dgnM-VTVn6QjEnJdJ0qX4VWFZu5C?usp=sharing)
 
 2. **screencasts**
-   - Directory containing all of Wednesday 21's demonstration screencasts. 
+   - **Description:** The screencasts are uploaded to Google Drive because of GitHub size limits. 
+   - **Access:** [View screencasts](https://drive.google.com/drive/folders/1F72OGEzev3q2uMXC-ry6-O540BJsZBGT?usp=sharing)
+
+## Automated Testing
+
+1. **Tests File**
+   - **Access:** [View bin/passwordEvaluationTestbed](https://github.com/sapai5/CSE360group/tree/main/bin/passwordEvaluationTestbed)
+   - **How To Run:** [View AutomatedTestsScreencast](https://drive.google.com/file/d/1pFUcWsdZeS_PRRIPOeIu2Y6k_ilEMv_J/view?usp=sharing)
 
 ## How to Access Each File
 

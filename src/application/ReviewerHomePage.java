@@ -24,6 +24,7 @@ public class ReviewerHomePage {
     	VBox layout = new VBox();
 	    layout.setStyle("-fx-alignment: center; -fx-padding: 20;");
 	    
+	    // Button to let the user logout
 	    Button quitButton = new Button("Logout");
 	    quitButton.setOnAction(a -> {
 	    	new SetupLoginSelectionPage(databaseHelper).show(primaryStage);

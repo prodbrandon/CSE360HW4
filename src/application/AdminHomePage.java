@@ -18,6 +18,7 @@ public class AdminHomePage {
     public void show(Stage primaryStage) {
         VBox layout = new VBox();
         
+        // Button the let the user logout
         Button quitButton = new Button("Logout");
         quitButton.setOnAction(a -> {
             new SetupLoginSelectionPage(databaseHelper).show(primaryStage);
@@ -25,9 +26,11 @@ public class AdminHomePage {
         
         layout.setStyle("-fx-alignment: center; -fx-padding: 20;");
         
+        // Label to welcome the Admin
         Label adminLabel = new Label("Hello, Admin!");
         adminLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
         
+        // Button to see the list view of users
         Button viewUserListButton = new Button("View User List");
         viewUserListButton.setOnAction(a -> {
             new ViewUserListPage().show(databaseHelper, primaryStage, adminUserName);
