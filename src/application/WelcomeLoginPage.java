@@ -5,13 +5,18 @@ import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.application.Platform;
+
+import java.sql.SQLException;
+
 import databasePart1.*;
 
 public class WelcomeLoginPage {
     private final DatabaseHelper databaseHelper;
+    private final studentDatabase studentDatabaseHelper;
 
     public WelcomeLoginPage(DatabaseHelper databaseHelper) {
         this.databaseHelper = databaseHelper;
+		this.studentDatabaseHelper = new studentDatabase();
     }
     
     public void show(Stage primaryStage, User user) {
@@ -31,7 +36,12 @@ public class WelcomeLoginPage {
                     new AdminHomePage(databaseHelper, user.getUserName()).show(primaryStage);
                     break;
                 case "student":
-                    new StudentHomePage(databaseHelper).show(primaryStage);
+				try {
+					studentDatabaseHelper.connectToDatabase();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+                    new StudentHomePage(studentDatabaseHelper).show(primaryStage);
                     break;
                 case "instructor":
                     new InstructorHomePage(databaseHelper).show(primaryStage);
