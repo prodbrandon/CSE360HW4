@@ -68,17 +68,18 @@ The following are all files and directories that comprise this repo:
 
 1. **meetings**
    - **Description:** The meetings are uploaded to Google Drive because of GitHub size limits.
-   - **Access:** [View meetings](https://drive.google.com/drive/folders/1NV55dgnM-VTVn6QjEnJdJ0qX4VWFZu5C?usp=sharing)
+   - **Access:** [View meetings](https://drive.google.com/drive/folders/1PToG_7kP7Dci9Uhobw_lCh_fWoREfJR8?usp=drive_link)
 
 2. **screencasts**
    - **Description:** The screencasts are uploaded to Google Drive because of GitHub size limits. 
-   - **Access:** [View screencasts](https://drive.google.com/drive/folders/1F72OGEzev3q2uMXC-ry6-O540BJsZBGT?usp=sharing)
+   - **Access:** [View screencasts](https://drive.google.com/drive/folders/16_NYTNpl_iDdKgA62Vvs8zpfAz_DHYhM?usp=sharing)
 
 ## Automated Testing
 
-1. **Tests File**
-   - **Access:** [View bin/passwordEvaluationTestbed](https://github.com/sapai5/CSE360group/tree/main/bin/passwordEvaluationTestbed)
-   - **How To Run:** [View AutomatedTestsScreencast](https://drive.google.com/file/d/1pFUcWsdZeS_PRRIPOeIu2Y6k_ilEMv_J/view?usp=sharing)
+1. **Tests Directory**
+   - **Access:** [View tests](https://github.com/sapai5/CSE360group/tree/main/test/test)
+   - **How To Run:** Simply open the project in eclipse, go to the test file, run the tests using the eclipse run button.
+   - **Screencasts:** [View ManualTesting Screencast](https://drive.google.com/file/d/1dXjNugYd3OZO0Q0h5IrawKgeltraJF3w/view?usp=drive_link)
 
 ## How to Access Each File
 
