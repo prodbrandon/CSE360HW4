@@ -170,7 +170,8 @@ public class StudentHomePage {
                 if (empty || answer == null) {
                     setText(null);
                 } else {
-                    setText(answer.content + "\nBy: " + answer.userName);
+                    String statusText = answer.needsClarification ? " [Needs Clarification]" : "";
+                    setText(answer.content + "\nBy: " + answer.userName + statusText);
                 }
             }
         });
@@ -185,24 +186,19 @@ public class StudentHomePage {
         HBox buttonBox = new HBox(10);
         Button submitButton = new Button("Submit Answer");
         Button resolveButton = new Button("Mark as Resolved");
+        Button clarificationButton = new Button("Needs Clarification"); // New button
         
         submitButton.setMaxWidth(Double.MAX_VALUE);
         resolveButton.setMaxWidth(Double.MAX_VALUE);
+        clarificationButton.setMaxWidth(Double.MAX_VALUE); // Set max width for the new button
         
         HBox.setHgrow(submitButton, Priority.ALWAYS);
         HBox.setHgrow(resolveButton, Priority.ALWAYS);
+        HBox.setHgrow(clarificationButton, Priority.ALWAYS); // Set Hgrow for the new button
         
         submitButton.setOnAction(e -> handleSubmitAnswer());
         
-        // Update button text based on question status
-        questionListView.getSelectionModel().selectedItemProperty().addListener(
-            (obs, oldSelection, newSelection) -> {
-                if (newSelection != null) {
-                    resolveButton.setText(newSelection.resolved ? "Unmark as Resolved" : "Mark as Resolved");
-                }
-            });
-        
-        // Update action handler
+        // Action handler for resolve button (remains the same)
         resolveButton.setOnAction(e -> {
             if (selectedQuestion == null) {
                 showError("Please select a question");
@@ -228,10 +224,25 @@ public class StudentHomePage {
             }
         });
         
-        buttonBox.getChildren().addAll(submitButton, resolveButton);
+        // Action handler for the clarification button
+        clarificationButton.setOnAction(e -> handleToggleAnswerClarification());
+        
+        // Update clarification button text based on answer selection
+        answerListView.getSelectionModel().selectedItemProperty().addListener(
+            (obs, oldSelection, newSelection) -> {
+                if (newSelection != null) {
+                    clarificationButton.setText(newSelection.needsClarification ? 
+                        "Remove Clarification Tag" : "Needs Clarification");
+                } else {
+                    clarificationButton.setText("Needs Clarification");
+                }
+            });
+        
+        buttonBox.getChildren().addAll(submitButton, resolveButton, clarificationButton);
         box.getChildren().addAll(label, answerListView, answerTextArea, buttonBox);
         return box;
     }
+    
     
     private ContextMenu createAnswerContextMenu() {
         ContextMenu contextMenu = new ContextMenu();
@@ -242,8 +253,51 @@ public class StudentHomePage {
         MenuItem deleteItem = new MenuItem("Delete Answer");
         deleteItem.setOnAction(e -> handleDeleteAnswer());
         
-        contextMenu.getItems().addAll(editItem, deleteItem);
+        MenuItem clarificationItem = new MenuItem("Needs Clarification");
+        clarificationItem.setOnAction(e -> handleToggleAnswerClarification());
+        
+        contextMenu.getItems().addAll(editItem, deleteItem, clarificationItem);
+        
+        // Update the clarification menu item text based on the selected answer
+        answerListView.getSelectionModel().selectedItemProperty().addListener(
+            (obs, oldSelection, newSelection) -> {
+                if (newSelection != null) {
+                    // Find the clarification menu item and update it
+                    for (MenuItem item : contextMenu.getItems()) {
+                        if (item.getText().equals("Needs Clarification") ||
+                            item.getText().equals("Remove Clarification Tag")) {
+                            
+                            item.setText(newSelection.needsClarification ? 
+                                "Remove Clarification Tag" : "Needs Clarification");
+                            break;
+                        }
+                    }
+                }
+            });
+        
         return contextMenu;
+    }
+    
+    private void handleToggleAnswerClarification() {
+        AnswerData selectedAnswer = answerListView.getSelectionModel().getSelectedItem();
+        if (selectedAnswer == null) {
+            showError("Please select an answer");
+            return;
+        }
+        
+        try {
+            // Toggle the needsClarification status
+            boolean newStatus = !selectedAnswer.needsClarification;
+            studentDatabaseHelper.markAnswerNeedsClarification(selectedAnswer.id, newStatus);
+            
+            // Refresh the answers list
+            if (selectedQuestion != null) {
+                answers.setAll(studentDatabaseHelper.getAnswersForQuestion(selectedQuestion.id));
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            showError("Error updating clarification status: " + ex.getMessage());
+        }
     }
     
     private void handleAskQuestion() {
