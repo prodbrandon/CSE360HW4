@@ -27,11 +27,28 @@ public class studentDatabase {
             connection = DriverManager.getConnection(DB_URL, USER, PASS);
             statement = connection.createStatement();
             createTables();
-            createTestUserIfNotExists(); // Add this line
-            System.out.println("Database connection and setup complete"); // Debug log
+            updateTables(); // Add this line to update existing tables with new columns
+            createTestUserIfNotExists();
+            System.out.println("Database connection and setup complete");
             //statement.execute("DROP ALL OBJECTS");
         } catch (ClassNotFoundException e) {
             System.err.println("JDBC Driver not found: " + e.getMessage());
+        }
+    }
+    
+    private void updateTables() {
+        try {
+            // Check if needsClarification column exists in the answers table
+            ResultSet rs = connection.getMetaData().getColumns(null, null, "ANSWERS", "NEEDSCLARIFICATION");
+            if (!rs.next()) {
+                // Column doesn't exist, so add it
+                System.out.println("Adding needsClarification column to answers table...");
+                statement.execute("ALTER TABLE answers ADD COLUMN needsClarification BOOLEAN DEFAULT FALSE");
+                System.out.println("Column added successfully");
+            }
+            rs.close();
+        } catch (SQLException e) {
+            System.err.println("Error updating tables: " + e.getMessage());
         }
     }
     
@@ -108,6 +125,21 @@ public class studentDatabase {
         }
     }
 
+    public void markAnswerNeedsClarification(int answerId, boolean needsClarification) throws SQLException {
+        try {
+            String query = "UPDATE answers SET needsClarification = ? WHERE id = ?";
+            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+                pstmt.setBoolean(1, needsClarification);
+                pstmt.setInt(2, answerId);
+                pstmt.executeUpdate();
+            }
+        } catch (SQLException e) {
+            // If this fails, the column might not exist yet
+            System.err.println("Error setting needsClarification: " + e.getMessage());
+            throw e;
+        }
+    }
+    
     private void createTables() throws SQLException {
         // Original user table
         String userTable = "CREATE TABLE IF NOT EXISTS cse360users ("
@@ -117,7 +149,7 @@ public class studentDatabase {
                 + "role VARCHAR(20))";
         statement.execute(userTable);
 
-        // Questions table
+        // Questions table remains the same
         String questionsTable = "CREATE TABLE IF NOT EXISTS questions ("
                 + "id INT AUTO_INCREMENT PRIMARY KEY, "
                 + "title VARCHAR(255), "
@@ -129,13 +161,14 @@ public class studentDatabase {
                 + "FOREIGN KEY (userId) REFERENCES cse360users(id))";
         statement.execute(questionsTable);
 
-        // Answers table
+        // Answers table - Add needsClarification column
         String answersTable = "CREATE TABLE IF NOT EXISTS answers ("
                 + "id INT AUTO_INCREMENT PRIMARY KEY, "
                 + "content TEXT, "
                 + "questionId INT, "
                 + "userId INT, "
                 + "createDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                + "needsClarification BOOLEAN DEFAULT FALSE, "
                 + "FOREIGN KEY (questionId) REFERENCES questions(id), "
                 + "FOREIGN KEY (userId) REFERENCES cse360users(id))";
         statement.execute(answersTable);
@@ -267,11 +300,20 @@ public class studentDatabase {
             ResultSet rs = pstmt.executeQuery();
             
             while (rs.next()) {
+                boolean needsClarification = false;
+                try {
+                    needsClarification = rs.getBoolean("needsClarification");
+                } catch (SQLException e) {
+                    // Column might not exist yet, just use default false
+                    System.out.println("needsClarification column not available yet, using default false");
+                }
+                
                 AnswerData answer = new AnswerData(
                     rs.getInt("id"),
                     rs.getString("content"),
                     rs.getString("userName"),
-                    rs.getTimestamp("createDate")
+                    rs.getTimestamp("createDate"),
+                    needsClarification
                 );
                 answers.add(answer);
             }
@@ -287,6 +329,8 @@ public class studentDatabase {
             pstmt.executeUpdate();
         }
     }
+    
+    
 
     // Reviewer Management Methods
     
@@ -426,12 +470,19 @@ class AnswerData {
     public final String content;
     public final String userName;
     public final Timestamp createDate;
+    public final boolean needsClarification;
 
-    public AnswerData(int id, String content, String userName, Timestamp createDate) {
+    public AnswerData(int id, String content, String userName, Timestamp createDate, boolean needsClarification) {
         this.id = id;
         this.content = content;
         this.userName = userName;
         this.createDate = createDate;
+        this.needsClarification = needsClarification;
+    }
+    
+    // Constructor without needsClarification for backward compatibility
+    public AnswerData(int id, String content, String userName, Timestamp createDate) {
+        this(id, content, userName, createDate, false);
     }
 }
 
