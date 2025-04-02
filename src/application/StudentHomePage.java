@@ -1,6 +1,7 @@
 package application;
 
 import javafx.scene.Scene;
+import javafx.geometry.Orientation;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
@@ -12,6 +13,7 @@ import javafx.util.Callback;
 
 import java.sql.SQLException;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -37,6 +39,9 @@ public class StudentHomePage {
     private QuestionData selectedQuestion = null;
     private ObservableList<QuestionData> questions = FXCollections.observableArrayList();
     private ObservableList<AnswerData> answers = FXCollections.observableArrayList();
+    
+    private ListView<ReviewData> reviewListView;
+    private ObservableList<ReviewData> reviews = FXCollections.observableArrayList();
     
     /**
      * Constructor initializes the student database helper
@@ -96,7 +101,9 @@ public class StudentHomePage {
         // Main content split pane
         SplitPane splitPane = new SplitPane();
         splitPane.setDividerPositions(0.4);
-        splitPane.getItems().addAll(createQuestionsSection(), createAnswersSection());
+        VBox questionsSection = createQuestionsSection();
+        VBox answersWithReviewsSection = createAnswersSection();
+        splitPane.getItems().addAll(questionsSection, answersWithReviewsSection);
         VBox.setVgrow(splitPane, Priority.ALWAYS);
         
         // Add all components to the main layout
@@ -206,6 +213,10 @@ public class StudentHomePage {
      * Creates the answers section for the split pane
      * @return VBox containing the answers list and related controls
      */
+    /**
+     * Creates the answers section for the split pane
+     * @return VBox containing the answers list and related controls
+     */
     private VBox createAnswersSection() {
         VBox answersBox = new VBox(10);
         answersBox.setPadding(new Insets(10));
@@ -213,6 +224,9 @@ public class StudentHomePage {
         // Label for answers section
         Label answersLabel = new Label("Answers");
         answersLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        
+        // Create a split pane to show answers and their reviews
+        SplitPane answerReviewSplitPane = new SplitPane();
         
         // Answers list view
         answerListView = new ListView<>(answers);
@@ -224,6 +238,30 @@ public class StudentHomePage {
         
         // Add context menu for answers
         answerListView.setContextMenu(createAnswerContextMenu());
+        
+        // Add the review section
+        VBox reviewsBox = createReviewsSection();
+        
+        answerReviewSplitPane.getItems().addAll(answerListView, reviewsBox);
+        answerReviewSplitPane.setOrientation(Orientation.VERTICAL);
+        answerReviewSplitPane.setDividerPositions(0.7);
+        VBox.setVgrow(answerReviewSplitPane, Priority.ALWAYS);
+        
+        // Handle answer selection
+        answerListView.getSelectionModel().selectedItemProperty().addListener(
+            (obs, oldSelection, newSelection) -> {
+                if (newSelection != null) {
+                    try {
+                        // Load reviews for this answer
+                        reviews.setAll(studentDatabaseHelper.getReviewsForAnswer(newSelection.id));
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                        showError("Error loading reviews: " + e.getMessage());
+                    }
+                } else {
+                    reviews.clear();
+                }
+            });
         
         // Answer input area
         answerTextArea = new TextArea();
@@ -266,9 +304,88 @@ public class StudentHomePage {
         buttonBox.getChildren().addAll(submitButton, resolveButton, clarificationButton);
         
         // Add all components to the answers box
-        answersBox.getChildren().addAll(answersLabel, answerListView, answerTextArea, buttonBox);
+        answersBox.getChildren().addAll(answersLabel, answerReviewSplitPane, answerTextArea, buttonBox);
         
         return answersBox;
+    }
+
+    /**
+     * Creates the reviews section to display reviews for answers
+     * @return VBox containing the reviews list
+     */
+    private VBox createReviewsSection() {
+        VBox reviewsBox = new VBox(10);
+        reviewsBox.setPadding(new Insets(10));
+        
+        // Label for reviews section
+        Label reviewsLabel = new Label("Reviews");
+        reviewsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        
+        // Reviews list view
+        reviewListView = new ListView<>(reviews);
+        reviewListView.setId("reviewListView");
+        VBox.setVgrow(reviewListView, Priority.ALWAYS);
+        
+        // Custom cell factory for review items
+        reviewListView.setCellFactory(createReviewCellFactory());
+        
+        reviewsBox.getChildren().addAll(reviewsLabel, reviewListView);
+        
+        return reviewsBox;
+    }
+    
+    /**
+     * Creates a cell factory for review items in a list view
+     * @return CellFactory for ReviewData
+     */
+    private Callback<ListView<ReviewData>, ListCell<ReviewData>> createReviewCellFactory() {
+        return lv -> new ListCell<ReviewData>() {
+            @Override
+            protected void updateItem(ReviewData review, boolean empty) {
+                super.updateItem(review, empty);
+                
+                if (empty || review == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    VBox container = new VBox(5);
+                    container.setPadding(new Insets(5));
+                    
+                    // Review content
+                    Label contentLabel = new Label(review.content);
+                    contentLabel.setWrapText(true);
+                    
+                    // Try to get reviewer name
+                    String reviewerName = "Reviewer";
+                    try {
+                        // Ideally would use: reviewerName = studentDatabaseHelper.getReviewerName(review.reviewerId);
+                        // But for now use a placeholder until that method is added
+                        reviewerName = "Reviewer #" + review.reviewerId;
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    
+                    // Metadata line
+                    Label reviewerLabel = new Label("By: " + reviewerName);
+                    reviewerLabel.setStyle("-fx-font-style: italic;");
+                    
+                    container.getChildren().addAll(contentLabel, reviewerLabel);
+                    setGraphic(container);
+                    setText(null);
+                }
+            }
+        };
+    }
+    
+    
+    /**
+     * Shows an informational message to the user
+     * @param message The info message to display
+     */
+    private void showInfo(String message) {
+        statusLabel.setText(message);
+        statusLabel.setTextFill(Color.BLUE);
+        statusLabel.setVisible(true);
     }
     
     /**
@@ -300,6 +417,15 @@ public class StudentHomePage {
         
         myAnswersTab.setContent(myAnswersListView);
         
+        // Reviews on My Answers tab
+        Tab reviewsOnMyAnswersTab = new Tab("Reviews on My Answers");
+        reviewsOnMyAnswersTab.setClosable(false);
+        
+        ListView<ReviewData> reviewsOnMyAnswersListView = new ListView<>();
+        reviewsOnMyAnswersListView.setCellFactory(createReviewCellFactory());
+        
+        reviewsOnMyAnswersTab.setContent(reviewsOnMyAnswersListView);
+        
         // Load my questions when tab is selected
         myQuestionsTab.setOnSelectionChanged(e -> {
             if (myQuestionsTab.isSelected()) {
@@ -315,8 +441,37 @@ public class StudentHomePage {
             }
         });
         
+        // Load my answers when tab is selected
+        myAnswersTab.setOnSelectionChanged(e -> {
+            if (myAnswersTab.isSelected()) {
+                try {
+                    int userId = studentDatabaseHelper.getUserId("testuser");
+                    // This would need to be implemented in studentDatabase.java:
+                    // myAnswersListView.setItems(FXCollections.observableArrayList(
+                    //     studentDatabaseHelper.getAnswersForUser(userId)));
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                    showError("Error loading your answers: " + ex.getMessage());
+                }
+            }
+        });
+        
+        // Load reviews on my answers when tab is selected
+        reviewsOnMyAnswersTab.setOnSelectionChanged(e -> {
+            if (reviewsOnMyAnswersTab.isSelected()) {
+                try {
+                    int userId = studentDatabaseHelper.getUserId("testuser");
+                    List<ReviewData> myAnswerReviews = studentDatabaseHelper.getReviewsForUserAnswers(userId);
+                    reviewsOnMyAnswersListView.setItems(FXCollections.observableArrayList(myAnswerReviews));
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                    showError("Error loading reviews for your answers: " + ex.getMessage());
+                }
+            }
+        });
+        
         // Add tabs to the activity TabPane
-        activityTabPane.getTabs().addAll(myQuestionsTab, myAnswersTab);
+        activityTabPane.getTabs().addAll(myQuestionsTab, myAnswersTab, reviewsOnMyAnswersTab);
         VBox.setVgrow(activityTabPane, Priority.ALWAYS);
         
         myActivityLayout.getChildren().add(activityTabPane);
@@ -610,6 +765,14 @@ public class StudentHomePage {
                     answers.setAll(studentDatabaseHelper.getAnswersForQuestion(selectedQuestion.id));
                     answerTextArea.clear();
                     loadAllQuestions();
+                    
+                    // After submitting an answer, check if there are any reviews for similar answers
+                    List<ReviewData> questionReviews = studentDatabaseHelper.getReviewsForQuestion(selectedQuestion.id);
+                    if (!questionReviews.isEmpty()) {
+                        showInfo("This question has " + questionReviews.size() + 
+                                 " review(s). They may contain helpful information for your answer.");
+                    }
+                    
                     showSuccess("Answer submitted successfully!");
                 } else {
                     showError("Failed to add answer");

@@ -235,6 +235,137 @@ public class studentDatabase {
         }
         return -1;
     }
+    
+    /**
+     * Gets the name of a reviewer by their ID
+     * @param reviewerId The ID of the reviewer
+     * @return The username of the reviewer
+     * @throws SQLException
+     */
+    public String getReviewerName(int reviewerId) throws SQLException {
+        String query = "SELECT u.userName FROM reviewers r JOIN cse360users u ON r.userId = u.id WHERE r.id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, reviewerId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("userName");
+            }
+        }
+        return "Unknown Reviewer";
+    }
+    
+    /**
+     * Gets all reviews for a user's answers
+     * @param userId The ID of the user
+     * @return List of ReviewData objects for reviews on the user's answers
+     * @throws SQLException
+     */
+    public List<ReviewData> getReviewsForUserAnswers(int userId) throws SQLException {
+        List<ReviewData> reviews = new ArrayList<>();
+        
+        // First get all the user's answers
+        String answerQuery = "SELECT id FROM answers WHERE userId = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(answerQuery)) {
+            pstmt.setInt(1, userId);
+            ResultSet answerRs = pstmt.executeQuery();
+            
+            // For each answer, get its reviews
+            while (answerRs.next()) {
+                int answerId = answerRs.getInt("id");
+                
+                String reviewQuery = "SELECT * FROM reviews WHERE answerId = ?";
+                try (PreparedStatement reviewPstmt = connection.prepareStatement(reviewQuery)) {
+                    reviewPstmt.setInt(1, answerId);
+                    ResultSet reviewRs = reviewPstmt.executeQuery();
+                    
+                    while (reviewRs.next()) {
+                        ReviewData review = new ReviewData(
+                            reviewRs.getInt("id"),
+                            reviewRs.getInt("reviewerId"),
+                            -1,
+                            answerId,
+                            reviewRs.getString("content")
+                        );
+                        reviews.add(review);
+                    }
+                }
+            }
+        }
+        
+        return reviews;
+    }
+    
+    /**
+     * Gets all answers for a specific user
+     * @param userId The ID of the user
+     * @return List of AnswerData objects
+     * @throws SQLException
+     */
+    public List<AnswerData> getAnswersForUser(int userId) throws SQLException {
+        List<AnswerData> answers = new ArrayList<>();
+        String query = "SELECT a.*, q.title as questionTitle FROM answers a " +
+                      "JOIN questions q ON a.questionId = q.id " +
+                      "WHERE a.userId = ? " +
+                      "ORDER BY a.createDate DESC";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                boolean needsClarification = false;
+                try {
+                    needsClarification = rs.getBoolean("needsClarification");
+                } catch (SQLException e) {
+                    // Column might not exist yet, use default false
+                }
+                
+                AnswerData answer = new AnswerData(
+                    rs.getInt("id"),
+                    rs.getString("content"),
+                    getUserName(rs.getInt("userId")),
+                    rs.getTimestamp("createDate"),
+                    needsClarification
+                );
+                answers.add(answer);
+            }
+        }
+        return answers;
+    }
+    
+    /**
+     * Gets all questions for a specific user
+     * @param userId The ID of the user
+     * @return List of QuestionData objects
+     * @throws SQLException
+     */
+    public List<QuestionData> getQuestionsForUser(int userId) throws SQLException {
+        List<QuestionData> questions = new ArrayList<>();
+        String query = "SELECT q.*, " +
+                      "(SELECT COUNT(*) FROM answers WHERE questionId = q.id) as answerCount " +
+                      "FROM questions q " +
+                      "WHERE q.userId = ? " +
+                      "ORDER BY q.createDate DESC";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                QuestionData question = new QuestionData(
+                    rs.getInt("id"),
+                    rs.getString("title"),
+                    rs.getString("content"),
+                    getUserName(rs.getInt("userId")),
+                    rs.getTimestamp("createDate"),
+                    rs.getBoolean("resolved"),
+                    rs.getInt("answerCount")
+                );
+                questions.add(question);
+            }
+        }
+        return questions;
+    }
 
     public List<QuestionData> getQuestions() throws SQLException {
         List<QuestionData> questions = new ArrayList<>();
