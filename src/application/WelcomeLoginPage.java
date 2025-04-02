@@ -36,11 +36,11 @@ public class WelcomeLoginPage {
                     new AdminHomePage(databaseHelper, user.getUserName()).show(primaryStage);
                     break;
                 case "student":
-				try {
-					studentDatabaseHelper.connectToDatabase();
-				} catch (SQLException e) {
-					e.printStackTrace();
-				}
+					try {
+						studentDatabaseHelper.connectToDatabase();
+					} catch (SQLException e) {
+						e.printStackTrace();
+					}
                     new StudentHomePage(studentDatabaseHelper).show(primaryStage);
                     break;
                 case "instructor":
@@ -50,7 +50,12 @@ public class WelcomeLoginPage {
                     new StaffHomePage(databaseHelper).show(primaryStage);
                     break;
                 case "reviewer":
-                    new ReviewerHomePage(databaseHelper).show(primaryStage);
+                	try {
+    					studentDatabaseHelper.connectToDatabase();
+    				} catch (SQLException e) {
+    					e.printStackTrace();
+    				}
+                    new ReviewerHomePage(studentDatabaseHelper, user).show(primaryStage);
                     break;
             }
         });

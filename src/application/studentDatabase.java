@@ -177,11 +177,21 @@ public class studentDatabase {
         String reviewersTable = "CREATE TABLE IF NOT EXISTS reviewers ("
                 + "id INT AUTO_INCREMENT PRIMARY KEY, "
                 + "userId INT, "
-                + "reviewerId INT, "
                 + "weight DOUBLE DEFAULT 1.0, "
-                + "FOREIGN KEY (userId) REFERENCES cse360users(id), "
-                + "FOREIGN KEY (reviewerId) REFERENCES cse360users(id))";
+                + "FOREIGN KEY (userId) REFERENCES cse360users(id))";
         statement.execute(reviewersTable);
+        
+        // Reviews table
+        String reviewsTable = "CREATE TABLE IF NOT EXISTS reviews ("
+        		+ "id INT AUTO_INCREMENT PRIMARY KEY, "
+        		+ "reviewerId INT, "
+        		+ "questionId INT, "
+        		+ "answerId INT, "
+        		+ "content TEXT, "
+//        		+ "FOREIGN KEY (questionId) REFERENCES questions(id), "
+//        		+ "FOREIGN KEY (answerId) REFERENCES answers(id), "
+                + "FOREIGN KEY (reviewerId) REFERENCES reviewers(id))";
+        statement.execute(reviewsTable);
 
         // Feedback table
         String feedbackTable = "CREATE TABLE IF NOT EXISTS feedback ("
@@ -237,6 +247,59 @@ public class studentDatabase {
             }
         }
         return questions;
+    }
+    
+    public QuestionData getQuestionById(int questionId) throws SQLException {
+    	QuestionData question;
+    	String query = "SELECT * FROM questions WHERE id = ?";
+    	try(PreparedStatement pstmt = connection.prepareStatement(query)) {
+    		pstmt.setInt(1, questionId);
+    		
+    		ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                question = new QuestionData(
+                    rs.getInt("id"),
+                    rs.getString("title"),
+                    rs.getString("content"),
+                    getUserName(rs.getInt("userId")),
+                    rs.getTimestamp("createDate"),
+                    rs.getBoolean("resolved"),
+                    0
+                );
+                return question;
+            }
+    	}
+    	
+    	return null;
+    }
+    
+    public AnswerData getAnswerById(int answerId) throws SQLException {
+    	AnswerData answer;
+    	String query = "SELECT * FROM answers WHERE id = ?";
+    	try(PreparedStatement pstmt = connection.prepareStatement(query)) {
+    		pstmt.setInt(1, answerId);
+    		
+    		ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+            	boolean needsClarification = false;
+                try {
+                    needsClarification = rs.getBoolean("needsClarification");
+                } catch (SQLException e) {
+                    // Column might not exist yet, just use default false
+                    System.out.println("needsClarification column not available yet, using default false");
+                }
+                answer = new AnswerData(
+            		rs.getInt("id"),
+                    rs.getString("content"),
+                    getUserName(rs.getInt("userId")),
+                    rs.getTimestamp("createDate"),
+                    needsClarification
+                );
+                return answer;
+            }
+    	}
+    	
+    	return null;
     }
 
     public List<QuestionData> searchQuestions(String searchTerm) throws SQLException {
@@ -334,12 +397,11 @@ public class studentDatabase {
 
     // Reviewer Management Methods
     
-    public void addReviewer(int userId, int reviewerId, double weight) throws SQLException {
-        String query = "INSERT INTO reviewers (userId, reviewerId, weight) VALUES (?, ?, ?)";
+    public void addReviewer(int userId, double weight) throws SQLException {
+        String query = "INSERT INTO reviewers (userId, weight) VALUES (?, ?)";
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
             pstmt.setInt(1, userId);
-            pstmt.setInt(2, reviewerId);
-            pstmt.setDouble(3, weight);
+            pstmt.setDouble(2, weight);
             pstmt.executeUpdate();
         }
     }
@@ -374,6 +436,100 @@ public class studentDatabase {
             pstmt.setInt(3, reviewerId);
             pstmt.executeUpdate();
         }
+    }
+    
+    // Review Management Methods
+    
+    public int addReview(int reviewerId, int questionId, int answerId, String content) throws SQLException {
+    	String query = "INSERT INTO reviews (reviewerId, questionId, answerId, content) VALUES (?, ?, ?, ?)";
+    	try (PreparedStatement pstmt = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
+    		pstmt.setInt(1, reviewerId);
+    		pstmt.setInt(2, questionId);
+    		pstmt.setInt(3, answerId);
+    		pstmt.setString(4, content);
+    		pstmt.executeUpdate();
+    		
+    		ResultSet rs = pstmt.getGeneratedKeys();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        }
+        return -1;
+    }
+    
+    public int updateReview(int reviewId, int reviewerId, int questionId, int answerId, String content) throws SQLException {
+    	String query = "UPDATE reviews SET content = ? WHERE id = ? AND reviewerId = ? AND questionId = ? AND answerId = ?";
+    	try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+    		pstmt.setString(1, content);
+    		pstmt.setInt(2, reviewId);
+    		pstmt.setInt(3, reviewerId);
+    		pstmt.setInt(4, questionId);
+    		pstmt.setInt(5, answerId);
+    		
+    		int changedRows = pstmt.executeUpdate();
+    		if (changedRows > 0) {
+    			return reviewId;
+    		} else {
+    			return -1;
+    		}
+    	}
+    }
+    
+    // Get Review methods
+    public List<ReviewData> getReviewsForQuestion(int questionId) throws SQLException {
+    	List<ReviewData> reviews = new ArrayList<>();
+    	String query = "SELECT * FROM reviews WHERE questionId = ?";
+    	try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+    		pstmt.setInt(1,  questionId);
+    		
+    		ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                ReviewData review = new ReviewData(
+                    rs.getInt("id"),
+                    rs.getInt("reviewerId"),
+                    questionId,
+                    -1,
+                    rs.getString("content")
+                );
+                reviews.add(review);
+            }
+    	}
+    	
+    	return reviews;
+    }
+    
+    public List<ReviewData> getReviewsForAnswer(int answerId) throws SQLException {
+    	List<ReviewData> reviews = new ArrayList<>();
+    	String query = "SELECT * FROM reviews WHERE answerId = ?";
+    	try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+    		pstmt.setInt(1,  answerId);
+    		
+    		ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                ReviewData review = new ReviewData(
+                    rs.getInt("id"),
+                    rs.getInt("reviewerId"),
+                    -1,
+                    answerId,
+                    rs.getString("content")
+                );
+                reviews.add(review);
+            }
+    	}
+    	
+    	return reviews;
+    }
+    
+    public boolean deleteReview(int reviewId, int reviewerId, int questionId, int answerId) throws SQLException {
+    	String query = "DELETE FROM reviews WHERE id = ? AND reviewerId = ? and questionId = ? and answerId = ?";
+    	try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+    		pstmt.setInt(1, reviewId);
+    		pstmt.setInt(2,  reviewerId);
+    		pstmt.setInt(3,  questionId);
+    		pstmt.setInt(4, answerId);
+    		
+    		return pstmt.executeUpdate() > 0;
+    	}
     }
 
     // Feedback Management Methods
@@ -420,6 +576,31 @@ public class studentDatabase {
         String query = "SELECT id FROM cse360users WHERE userName = ?";
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
             pstmt.setString(1, userName);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("id");
+            }
+        }
+        return -1;
+    }
+    
+    public String getUserName(int userId) throws SQLException {
+    	String query = "SELECT * FROM cse360users WHERE id = ?";
+    	try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+    		pstmt.setInt(1, userId);
+    		ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("userName");
+            }
+    	} 
+    	
+    	return null;
+    }
+    
+    public int getReviewerId(int userId) throws SQLException {
+    	String query = "SELECT id FROM reviewers WHERE userId = ?";
+    	try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, userId);
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
                 return rs.getInt("id");
@@ -496,6 +677,22 @@ class ReviewerRecord {
         this.userName = userName;
         this.weight = weight;
     }
+}
+
+class ReviewData {
+	public final int id;
+	public final int reviewerId;
+	public final int questionId;
+	public final int answerId;
+	public final String content;
+	
+	public ReviewData(int id, int reviewerId, int questionId, int answerId, String content) {
+		this.id = id;
+		this.reviewerId = reviewerId;
+		this.questionId = questionId;
+		this.answerId = answerId;
+		this.content = content;
+	}
 }
 
 class FeedbackData {

@@ -165,6 +165,13 @@ public class SetupAccountPage {
 		            	User user=new User(userName, password, buttonVal);
 		            	
 		                databaseHelper.register(user);
+		                if (buttonVal == "reviewer") {
+		                	studentDatabase studentDatabaseHelper = new studentDatabase();
+		                	studentDatabaseHelper.connectToDatabase();
+		                	int userId = studentDatabaseHelper.getUserId(userName);
+		                	studentDatabaseHelper.addReviewer(userId, 1);
+		                	studentDatabaseHelper.closeConnection();
+		                }
 		                
 		             // Navigate to the Welcome Login Page	
 		                new WelcomeLoginPage(databaseHelper).show(primaryStage,user);
