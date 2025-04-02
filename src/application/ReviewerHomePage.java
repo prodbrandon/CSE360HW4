@@ -2,6 +2,7 @@ package application;
 
 import java.sql.SQLException;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 import databasePart1.DatabaseHelper;
 import javafx.application.Platform;
@@ -67,7 +68,7 @@ public class ReviewerHomePage {
     }
 
     public void show(Stage primaryStage) {
-    	// Create main layout with TabPane
+        // Create main layout with TabPane
         tabPane = new TabPane();
         
         // Questions & Answers Tab
@@ -80,8 +81,13 @@ public class ReviewerHomePage {
         myReviewsTab.setClosable(false);
         myReviewsTab.setContent(createMyActivityTabContent());
         
+        // Messages Tab
+        Tab messagesTab = new Tab("Messages");
+        messagesTab.setClosable(false);
+        messagesTab.setContent(createMessagesTabContent());
+        
         // Add tabs to the TabPane
-        tabPane.getTabs().addAll(qaTab, myReviewsTab);
+        tabPane.getTabs().addAll(qaTab, myReviewsTab, messagesTab);
         
         // Create scene and set it on the stage
         Scene scene = new Scene(tabPane, 1000, 700);
@@ -91,7 +97,9 @@ public class ReviewerHomePage {
         
         // Load initial data
         loadAllQuestions();
-    	
+        
+        // Check for unread messages and update UI
+        checkForUnreadMessages();
     }
     
     /**
@@ -99,7 +107,7 @@ public class ReviewerHomePage {
      * @return The VBox containing the Q&A tab content
      */
     private VBox createQATabContent() {
-        VBox qaLayout = new VBox(10);
+    	VBox qaLayout = new VBox(10);
         qaLayout.setPadding(new Insets(10));
         
         // Status label for feedback
@@ -110,10 +118,23 @@ public class ReviewerHomePage {
         // Search and filter section
         HBox searchFilterBox = createSearchFilterSection();
         
-        // Main content split pane
+        // Main content split pane with three equal sections
         SplitPane splitPane = new SplitPane();
-        splitPane.setDividerPositions(0.4);
-        splitPane.getItems().addAll(createQuestionsSection(), createAnswersSection(), createReviewsSection());
+        // Set divider positions to create three equal sections (0.33, 0.67)
+        splitPane.setDividerPositions(0.333, 0.667);
+        
+        // Create the three sections
+        VBox questionsSection = createQuestionsSection();
+        VBox answersSection = createAnswersSection();
+        VBox reviewsSection = createReviewsSection();
+        
+        // Set equal size constraints for each section
+        SplitPane.setResizableWithParent(questionsSection, true);
+        SplitPane.setResizableWithParent(answersSection, true);
+        SplitPane.setResizableWithParent(reviewsSection, true);
+        
+        // Add sections to the split pane
+        splitPane.getItems().addAll(questionsSection, answersSection, reviewsSection);
         VBox.setVgrow(splitPane, Priority.ALWAYS);
         
         // Add all components to the main layout
@@ -374,7 +395,43 @@ public class ReviewerHomePage {
         // Create tabs for different types of activities
         TabPane activityTabPane = new TabPane();
         
-        // My Questions tab
+        // My Reviews tab
+        Tab myReviewsTab = new Tab("My Reviews");
+        myReviewsTab.setClosable(false);
+        
+        // Creating a ListView for my reviews
+        ListView<ReviewData> myReviewsListView = new ListView<>();
+        myReviewsListView.setCellFactory(createReviewCellFactory());
+        
+        // Add context menu for my reviews to enable edit/delete functionality
+        ContextMenu reviewContextMenu = new ContextMenu();
+        
+        MenuItem editItem = new MenuItem("Edit Review");
+        editItem.setOnAction(e -> {
+            ReviewData selectedReview = myReviewsListView.getSelectionModel().getSelectedItem();
+            if (selectedReview != null) {
+                handleEditReview(selectedReview, myReviewsListView);
+            } else {
+                showError("Please select a review to edit");
+            }
+        });
+        
+        MenuItem deleteItem = new MenuItem("Delete Review");
+        deleteItem.setOnAction(e -> {
+            ReviewData selectedReview = myReviewsListView.getSelectionModel().getSelectedItem();
+            if (selectedReview != null) {
+                handleDeleteReview(selectedReview, myReviewsListView);
+            } else {
+                showError("Please select a review to delete");
+            }
+        });
+        
+        reviewContextMenu.getItems().addAll(editItem, deleteItem);
+        myReviewsListView.setContextMenu(reviewContextMenu);
+        
+        myReviewsTab.setContent(myReviewsListView);
+        
+        // My Questions tab (keeping existing code)
         Tab myQuestionsTab = new Tab("My Questions");
         myQuestionsTab.setClosable(false);
         
@@ -383,7 +440,7 @@ public class ReviewerHomePage {
         
         myQuestionsTab.setContent(myQuestionsListView);
         
-        // My Answers tab
+        // My Answers tab (keeping existing code)
         Tab myAnswersTab = new Tab("My Answers");
         myAnswersTab.setClosable(false);
         
@@ -392,11 +449,29 @@ public class ReviewerHomePage {
         
         myAnswersTab.setContent(myAnswersListView);
         
-        // Load my questions when tab is selected
+        // Load my reviews when the tab is selected
+        myReviewsTab.setOnSelectionChanged(e -> {
+            if (myReviewsTab.isSelected()) {
+                try {
+                    int userId = studentDatabaseHelper.getUserId(user.getUserName());
+                    int reviewerId = studentDatabaseHelper.getReviewerId(userId);
+                    if (reviewerId != -1) {
+                        // Fetch all reviews by this reviewer
+                        List<ReviewData> myReviews = studentDatabaseHelper.getReviewsByReviewer(reviewerId);
+                        myReviewsListView.setItems(FXCollections.observableArrayList(myReviews));
+                    }
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                    showError("Error loading your reviews: " + ex.getMessage());
+                }
+            }
+        });
+        
+        // Load my questions when tab is selected (keeping existing code)
         myQuestionsTab.setOnSelectionChanged(e -> {
             if (myQuestionsTab.isSelected()) {
                 try {
-                    int userId = studentDatabaseHelper.getUserId("testuser");
+                    int userId = studentDatabaseHelper.getUserId(user.getUserName());
                     // This would need to be implemented in studentDatabase.java:
                     // myQuestionsListView.setItems(FXCollections.observableArrayList(
                     //     studentDatabaseHelper.getQuestionsForUser(userId)));
@@ -407,8 +482,23 @@ public class ReviewerHomePage {
             }
         });
         
-        // Add tabs to the activity TabPane
-        activityTabPane.getTabs().addAll(myQuestionsTab, myAnswersTab);
+        // Load my answers when tab is selected
+        myAnswersTab.setOnSelectionChanged(e -> {
+            if (myAnswersTab.isSelected()) {
+                try {
+                    int userId = studentDatabaseHelper.getUserId(user.getUserName());
+                    // This would need to be implemented in studentDatabase.java:
+                    // myAnswersListView.setItems(FXCollections.observableArrayList(
+                    //     studentDatabaseHelper.getAnswersForUser(userId)));
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                    showError("Error loading your answers: " + ex.getMessage());
+                }
+            }
+        });
+        
+        // Add tabs to the activity TabPane - putting My Reviews first
+        activityTabPane.getTabs().addAll(myReviewsTab, myQuestionsTab, myAnswersTab);
         VBox.setVgrow(activityTabPane, Priority.ALWAYS);
         
         myActivityLayout.getChildren().add(activityTabPane);
@@ -540,9 +630,7 @@ public class ReviewerHomePage {
      * @return CellFactory for ReviewData
      */
     private Callback<ListView<ReviewData>, ListCell<ReviewData>> createReviewCellFactory() {
-        return lv -> new ListCell<ReviewData>() {
-            //private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm");
-            
+    	return lv -> new ListCell<ReviewData>() {
             @Override
             protected void updateItem(ReviewData review, boolean empty) {
                 super.updateItem(review, empty);
@@ -555,56 +643,69 @@ public class ReviewerHomePage {
                     container.setPadding(new Insets(5));
                     
                     if (review.questionId != -1) {
-                    	QuestionData question;
-						try {
-							question = studentDatabaseHelper.getQuestionById(review.questionId);
-						} catch (SQLException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-							question = null;
-						}
-						
-                    	// Title with resolved status
-                        HBox titleBox = new HBox(5);
-                        Label titleLabel = new Label("Review of: " + question.title);
-                        titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-                        titleBox.getChildren().addAll(titleLabel);
-                        
-                        // Metadata line
-                        HBox metaBox = new HBox(10);
-                        Label reviewContent = new Label(review.content);
-                        //reviewContent.setStyle("-fx-font-style: italic;");
-                        
-                        metaBox.getChildren().addAll(reviewContent);
-                        
-                        container.getChildren().addAll(titleBox, metaBox);
-                        setGraphic(container);
-                        setText(null);
+                        try {
+                            // Create a final copy of the question
+                            final QuestionData question = studentDatabaseHelper.getQuestionById(review.questionId);
+                            
+                            if (question != null) {
+                                // Title with resolved status
+                                HBox titleBox = new HBox(5);
+                                Label titleLabel = new Label("Review of: " + question.title);
+                                titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+                                titleBox.getChildren().addAll(titleLabel);
+                                
+                                // Metadata line
+                                HBox metaBox = new HBox(10);
+                                Label reviewContent = new Label(review.content);
+                                
+                                metaBox.getChildren().addAll(reviewContent);
+                                
+                                // Add message button
+                                Button messageButton = new Button("Message Author");
+                                messageButton.setOnAction(e -> openMessageDialog(question, null));
+                                
+                                container.getChildren().addAll(titleBox, metaBox, messageButton);
+                                setGraphic(container);
+                                setText(null);
+                            } else {
+                                setText("Review of a deleted question");
+                            }
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                            setText("Error loading question: " + e.getMessage());
+                        }
                     } else {
-                    	AnswerData answer;
-						try {
-							answer = studentDatabaseHelper.getAnswerById(review.answerId);
-						} catch (SQLException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-							answer = null;
-						}
-                    	// Title with resolved status
-                        HBox titleBox = new HBox(5);
-                        Label titleLabel = new Label("Review of: " + answer.content);
-                        titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
-                        titleBox.getChildren().addAll(titleLabel);
-                        
-                        // Metadata line
-                        HBox metaBox = new HBox(10);
-                        Label reviewContent = new Label(review.content);
-                        //reviewContent.setStyle("-fx-font-style: italic;");
-                        
-                        metaBox.getChildren().addAll(reviewContent);
-                        
-                        container.getChildren().addAll(titleBox, metaBox);
-                        setGraphic(container);
-                        setText(null);
+                        try {
+                            // Create a final copy of the answer
+                            final AnswerData answer = studentDatabaseHelper.getAnswerById(review.answerId);
+                            
+                            if (answer != null) {
+                                // Title with resolved status
+                                HBox titleBox = new HBox(5);
+                                Label titleLabel = new Label("Review of: " + answer.content);
+                                titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+                                titleBox.getChildren().addAll(titleLabel);
+                                
+                                // Metadata line
+                                HBox metaBox = new HBox(10);
+                                Label reviewContent = new Label(review.content);
+                                
+                                metaBox.getChildren().addAll(reviewContent);
+                                
+                                // Add message button
+                                Button messageButton = new Button("Message Author");
+                                messageButton.setOnAction(e -> openMessageDialog(null, answer));
+                                
+                                container.getChildren().addAll(titleBox, metaBox, messageButton);
+                                setGraphic(container);
+                                setText(null);
+                            } else {
+                                setText("Review of a deleted answer");
+                            }
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                            setText("Error loading answer: " + e.getMessage());
+                        }
                     }
                 }
             }
@@ -616,36 +717,16 @@ public class ReviewerHomePage {
      * @return ContextMenu with question-related actions
      */
     private ContextMenu createQuestionContextMenu() {
-        ContextMenu contextMenu = new ContextMenu();
+    	ContextMenu contextMenu = new ContextMenu();
         
-//        MenuItem editItem = new MenuItem("Edit Question");
-//        editItem.setOnAction(e -> handleEditQuestion());
-//        
-//        MenuItem deleteItem = new MenuItem("Delete Question");
-//        deleteItem.setOnAction(e -> handleDeleteQuestion());
+        MenuItem messageItem = new MenuItem("Message Author");
+        messageItem.setOnAction(e -> {
+            if (selectedQuestion != null) {
+                openMessageDialog(selectedQuestion, null);
+            }
+        });
         
-        //contextMenu.getItems().addAll(editItem, deleteItem);
-        
-        // Add dynamic menu items based on question selection
-//        questionListView.getSelectionModel().selectedItemProperty().addListener(
-//            (obs, oldSelection, newSelection) -> {
-//                // Remove any existing resolve/unresolve menu items
-//                contextMenu.getItems().removeIf(item -> 
-//                    item.getText().equals("Mark as Resolved") || 
-//                    item.getText().equals("Unmark as Resolved"));
-//                
-//                if (newSelection != null) {
-//                    MenuItem resolveItem;
-//                    if (newSelection.resolved) {
-//                        resolveItem = new MenuItem("Unmark as Resolved");
-//                        resolveItem.setOnAction(e -> handleUnresolve());
-//                    } else {
-//                        resolveItem = new MenuItem("Mark as Resolved");
-//                        resolveItem.setOnAction(e -> handleMarkAsResolved());
-//                    }
-//                    contextMenu.getItems().add(resolveItem);
-//                }
-//            });
+        contextMenu.getItems().addAll(messageItem);
         
         return contextMenu;
     }
@@ -655,21 +736,16 @@ public class ReviewerHomePage {
      * @return ContextMenu with answer-related actions
      */
     private ContextMenu createAnswerContextMenu() {
-        ContextMenu contextMenu = new ContextMenu();
+    	ContextMenu contextMenu = new ContextMenu();
         
-//        MenuItem editItem = new MenuItem("Edit Answer");
-//        editItem.setOnAction(e -> handleEditAnswer());
-//        
-//        MenuItem deleteItem = new MenuItem("Delete Answer");
-//        deleteItem.setOnAction(e -> handleDeleteAnswer());
-//        
-//        MenuItem clarificationItem = new MenuItem("Needs Clarification");
-//        clarificationItem.setOnAction(e -> handleToggleAnswerClarification());
-//        
-//        MenuItem markResolvedItem = new MenuItem("Mark as Solution");
-//        markResolvedItem.setOnAction(e -> handleMarkAsResolved());
+        MenuItem messageItem = new MenuItem("Message Author");
+        messageItem.setOnAction(e -> {
+            if (selectedAnswer != null) {
+                openMessageDialog(null, selectedAnswer);
+            }
+        });
         
-        //contextMenu.getItems().addAll(editItem, deleteItem, clarificationItem, markResolvedItem);
+        contextMenu.getItems().addAll(messageItem);
         
         // Update the clarification menu item text based on the selected answer
         answerListView.getSelectionModel().selectedItemProperty().addListener(
@@ -689,6 +765,108 @@ public class ReviewerHomePage {
             });
         
         return contextMenu;
+    }
+    
+    /**
+     * Opens a dialog to send a direct message to a user
+     * @param question The question whose author will receive the message, or null
+     * @param answer The answer whose author will receive the message, or null
+     */
+    private void openMessageDialog(QuestionData question, AnswerData answer) {
+        try {
+            // Determine recipient ID
+            int recipientId = -1;
+            int relatedQuestionId = -1;
+            int relatedAnswerId = -1;
+            String recipientName = "";
+            String contentPreview = "";
+            
+            if (question != null) {
+                recipientId = studentDatabaseHelper.getQuestionOwnerId(question.id);
+                relatedQuestionId = question.id;
+                recipientName = question.userName;
+                contentPreview = "Question: " + question.title;
+            } else if (answer != null) {
+                recipientId = studentDatabaseHelper.getAnswerOwnerId(answer.id);
+                relatedAnswerId = answer.id;
+                recipientName = answer.userName;
+                contentPreview = "Answer: " + (answer.content.length() > 30 ? 
+                        answer.content.substring(0, 27) + "..." : answer.content);
+            }
+            
+            if (recipientId == -1) {
+                showError("Could not identify the recipient");
+                return;
+            }
+            
+            // Create the message dialog
+            Dialog<String> dialog = new Dialog<>();
+            dialog.setTitle("Send Message");
+            dialog.setHeaderText("Send a message to " + recipientName + " about their " + 
+                    (question != null ? "question" : "answer"));
+            
+            // Create the dialog content
+            VBox dialogContent = new VBox(10);
+            dialogContent.setPadding(new Insets(10));
+            
+            Label previewLabel = new Label("Regarding: " + contentPreview);
+            previewLabel.setStyle("-fx-font-style: italic;");
+            
+            TextArea messageArea = new TextArea();
+            messageArea.setPromptText("Type your message here...");
+            messageArea.setPrefRowCount(8);
+            messageArea.setWrapText(true);
+            
+            dialogContent.getChildren().addAll(previewLabel, messageArea);
+            dialog.getDialogPane().setContent(dialogContent);
+            
+            // Add buttons
+            ButtonType sendButtonType = new ButtonType("Send", ButtonBar.ButtonData.OK_DONE);
+            dialog.getDialogPane().getButtonTypes().addAll(sendButtonType, ButtonType.CANCEL);
+            
+            // Set the result converter
+            dialog.setResultConverter(dialogButton -> {
+                if (dialogButton == sendButtonType) {
+                    return messageArea.getText();
+                }
+                return null;
+            });
+            
+            // Final variables for use in lambda
+            final int finalRecipientId = recipientId;
+            final int finalRelatedQuestionId = relatedQuestionId;
+            final int finalRelatedAnswerId = relatedAnswerId;
+            
+            // Handle the result
+            dialog.showAndWait().ifPresent(messageText -> {
+                if (!messageText.trim().isEmpty()) {
+                    try {
+                        int senderId = studentDatabaseHelper.getUserId(user.getUserName());
+                        int messageId = studentDatabaseHelper.sendMessage(
+                                senderId, 
+                                finalRecipientId, 
+                                finalRelatedQuestionId, 
+                                finalRelatedAnswerId, 
+                                messageText.trim());
+                        
+                        if (messageId != -1) {
+                            showSuccess("Message sent successfully!");
+                        } else {
+                            showError("Failed to send message");
+                        }
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                        showError("Error sending message: " + e.getMessage());
+                    }
+                } else {
+                    showError("Message cannot be empty");
+                }
+            });
+            
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showError("Error preparing message: " + e.getMessage());
+        }
     }
     
     /**
@@ -819,98 +997,428 @@ public class ReviewerHomePage {
     
     /**
      * Handles the action of editing a selected review
+     * @param reviewParam The review to edit (can be from either tab)
+     * @param listView The ListView to refresh after editing (can be null if using main tab)
+     */
+    private void handleEditReview(ReviewData reviewParam, ListView<ReviewData> listView) {
+        // Create a final copy of the review to use in the lambda
+        final ReviewData review = (reviewParam == null) ? selectedReview : reviewParam;
+        
+        if (review != null) {
+            try {
+                int userId = studentDatabaseHelper.getUserId(user.getUserName());
+                int reviewerId = studentDatabaseHelper.getReviewerId(userId);
+                
+                if (review.reviewerId == reviewerId) {
+                    Dialog<String> dialog = new Dialog<>();
+                    dialog.setTitle("Edit review");
+                    dialog.setHeaderText("Edit your review");
+                    
+                    // Create the dialog content
+                    TextArea editArea = new TextArea(review.content);
+                    editArea.setPrefRowCount(5);
+                    editArea.setPrefColumnCount(40);
+                    editArea.setWrapText(true);
+                    dialog.getDialogPane().setContent(editArea);
+
+                    // Add buttons
+                    ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+                    dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+
+                    // Set the result converter
+                    dialog.setResultConverter(dialogButton -> {
+                        if (dialogButton == saveButtonType) {
+                            return editArea.getText();
+                        }
+                        return null;
+                    });
+                    
+                    // Store these values before the lambda to make them effectively final
+                    final int reviewId = review.id;
+                    final int questionId = review.questionId;
+                    final int answerId = review.answerId;
+                    
+                    // Handle the result
+                    dialog.showAndWait().ifPresent(editedText -> {
+                        if (!editedText.trim().isEmpty()) {
+                            try {
+                                studentDatabaseHelper.updateReview(reviewId, reviewerId, questionId, answerId, editedText.trim());
+                                
+                                // Refresh the appropriate list view
+                                if (listView != null) {
+                                    // We're in the My Reviews tab, refresh that list
+                                    refreshMyReviewsList(listView, reviewerId);
+                                } else {
+                                    // We're in the main tab, refresh that list
+                                    if (questionId != -1) {
+                                        reviews.setAll(studentDatabaseHelper.getReviewsForQuestion(questionId));
+                                    } else {
+                                        reviews.setAll(studentDatabaseHelper.getReviewsForAnswer(answerId));
+                                    }
+                                    selectedReview = null;
+                                }
+                                
+                                showSuccess("Review updated successfully!");
+                            } catch (SQLException e) {
+                                e.printStackTrace();
+                                showError("Error updating review: " + e.getMessage());
+                            }
+                        }
+                    });
+                } else {
+                    showError("You must be the reviewer of the review to edit");
+                }
+                
+            } catch (SQLException e) {
+                e.printStackTrace();
+                showError("Error: " + e.getMessage());
+            }
+        } else {
+            showError("Please select a review to edit");
+        }
+    }
+
+    /**
+     * Handles the action of deleting a selected review
+     * @param reviewParam The review to delete (can be from either tab)
+     * @param listView The ListView to refresh after deleting (can be null if using main tab)
+     */
+    private void handleDeleteReview(ReviewData reviewParam, ListView<ReviewData> listView) {
+        // Create a final copy of the review to use in the lambda
+        final ReviewData review = (reviewParam == null) ? selectedReview : reviewParam;
+        
+        if (review != null) {
+            try {
+                int userId = studentDatabaseHelper.getUserId(user.getUserName());
+                int reviewerId = studentDatabaseHelper.getReviewerId(userId);
+                
+                if (review.reviewerId == reviewerId) {
+                    // Confirm deletion
+                    Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+                    confirmAlert.setTitle("Confirm Delete");
+                    confirmAlert.setHeaderText("Delete Review");
+                    confirmAlert.setContentText("Are you sure you want to delete this review?");
+                    
+                    // Store these values before the lambda to make them effectively final
+                    final int reviewId = review.id;
+                    final int questionId = review.questionId;
+                    final int answerId = review.answerId;
+                    
+                    confirmAlert.showAndWait().ifPresent(result -> {
+                        if (result == ButtonType.OK) {
+                            try {
+                                studentDatabaseHelper.deleteReview(reviewId, reviewerId, questionId, answerId);
+                                
+                                // Refresh the appropriate list view
+                                if (listView != null) {
+                                    // We're in the My Reviews tab, refresh that list
+                                    refreshMyReviewsList(listView, reviewerId);
+                                } else {
+                                    // We're in the main tab, refresh that list
+                                    if (questionId != -1) {
+                                        reviews.setAll(studentDatabaseHelper.getReviewsForQuestion(questionId));
+                                    } else {
+                                        reviews.setAll(studentDatabaseHelper.getReviewsForAnswer(answerId));
+                                    }
+                                    selectedReview = null;
+                                }
+                                
+                                showSuccess("Review deleted successfully!");
+                            } catch (SQLException e) {
+                                e.printStackTrace();
+                                showError("Error deleting review: " + e.getMessage());
+                            }
+                        }
+                    });
+                } else {
+                    showError("Must be the reviewer of the review to delete.");
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+                showError("Error: " + e.getMessage());
+            }
+        } else {
+            showError("Must have a review selected");
+        }
+    }
+
+    /**
+     * Helper method to refresh the My Reviews list
+     * @param listView The ListView to refresh
+     * @param reviewerId The reviewer ID to filter by
+     * @throws SQLException
+     */
+    private void refreshMyReviewsList(ListView<ReviewData> listView, int reviewerId) throws SQLException {
+        List<ReviewData> myReviews = studentDatabaseHelper.getReviewsByReviewer(reviewerId);
+        listView.setItems(FXCollections.observableArrayList(myReviews));
+    }
+
+    /**
+     * Update the original handleEditReview and handleDeleteReview methods to call the new methods
      */
     private void handleEditReview() {
-    	if (selectedReview != null) {
-    		try {
-    			int userId = studentDatabaseHelper.getUserId(user.getUserName());
-    			int reviewerId = studentDatabaseHelper.getReviewerId(userId);
-    			if (selectedReview.reviewerId == reviewerId) {
-    				Dialog<String> dialog = new Dialog<>();
-    		    	dialog.setTitle("Edit review");
-    		    	dialog.setHeaderText("Edit your answer");
-    		    	
-    		    	// Create the dialog content
-    		        TextArea editArea = new TextArea(selectedReview.content);
-    		        editArea.setPrefRowCount(5);
-    		        editArea.setPrefColumnCount(40);
-    		        editArea.setWrapText(true);
-    		        dialog.getDialogPane().setContent(editArea);
+        handleEditReview(null, null);
+    }
 
-    		        // Add buttons
-    		        ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
-    		        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
-
-    		        // Set the result converter
-    		        dialog.setResultConverter(dialogButton -> {
-    		            if (dialogButton == saveButtonType) {
-    		                return editArea.getText();
-    		            }
-    		            return null;
-    		        });
-    		        
-    		        // Handle the result
-    		        dialog.showAndWait().ifPresent(editedText -> {
-    		            if (!editedText.trim().isEmpty()) {
-    		                try {
-    		                    studentDatabaseHelper.updateReview(selectedReview.id, reviewerId, selectedReview.questionId, selectedReview.answerId, editedText.trim());
-    		                    if (selectedReview.questionId != -1) {
-    		    					reviews.setAll(studentDatabaseHelper.getReviewsForQuestion(selectedReview.questionId));
-    		    				} else {
-    		    					reviews.setAll(studentDatabaseHelper.getReviewsForAnswer(selectedReview.answerId));
-    		    				}
-    		    				this.selectedReview = null;
-    		                    showSuccess("Review updated successfully!");
-    		                } catch (SQLException e) {
-    		                    e.printStackTrace();
-    		                    showError("Error updating review: " + e.getMessage());
-    		                }
-    		            }
-    		        });
-    			} else {
-    				showError("Can Must be the reivwer of the reviwer to delete");
-    			}
-    			
-    		} catch (SQLException e) {
-    			// TODO Auto-generated catch block
-    			e.printStackTrace();
-    		}
-    	} else {
-    		showError("Please select a review to edit");
-    		return;
-    	}
+    private void handleDeleteReview() {
+        handleDeleteReview(null, null);
     }
     
     /**
-     * Handles the action of deleting a selected review
+     * Creates the content for the Messages tab
+     * @return VBox containing the Messages tab content
      */
-    private void handleDeleteReview() {
-    	if (selectedReview != null) {
-    		try {
-    			int userId = studentDatabaseHelper.getUserId(user.getUserName());
-    			int reviewerId = studentDatabaseHelper.getReviewerId(userId);
-    			
-    			if (selectedReview.reviewerId == reviewerId) {
-    				studentDatabaseHelper.deleteReview(selectedReview.id, reviewerId, selectedReview.questionId, selectedReview.answerId);
-    				if (selectedReview.questionId != -1) {
-    					reviews.setAll(studentDatabaseHelper.getReviewsForQuestion(selectedReview.questionId));
-    				} else {
-    					reviews.setAll(studentDatabaseHelper.getReviewsForAnswer(selectedReview.answerId));
-    				}
-    				this.selectedReview = null;
-    				showSuccess("Review deleted successfully!");
-    			} else {
-    				showError("Must be the reviewer of the review to delete.");
-    			}
-
-    			
-    		} catch (SQLException e) {
-    			// TODO Auto-generated catch block
-    			e.printStackTrace();
-    		}
-    	} else {
-    		showError("Must have a review selected");
-            return;
-    	}
+    private VBox createMessagesTabContent() {
+        VBox messagesLayout = new VBox(10);
+        messagesLayout.setPadding(new Insets(10));
+        
+        // Create a split pane to divide messages list and message content
+        SplitPane splitPane = new SplitPane();
+        
+        // Left side: Messages list
+        VBox messagesListBox = new VBox(10);
+        messagesListBox.setPadding(new Insets(5));
+        
+        Label messagesLabel = new Label("Messages");
+        messagesLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        
+        // Messages list
+        ListView<MessageData> messagesListView = new ListView<>();
+        VBox.setVgrow(messagesListView, Priority.ALWAYS);
+        
+        // Custom cell factory for messages
+        messagesListView.setCellFactory(lv -> new ListCell<MessageData>() {
+            private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm");
+            
+            @Override
+            protected void updateItem(MessageData message, boolean empty) {
+                super.updateItem(message, empty);
+                
+                if (empty || message == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    VBox container = new VBox(5);
+                    container.setPadding(new Insets(5));
+                    
+                    // Message header with sender/receiver info
+                    HBox headerBox = new HBox(5);
+                    boolean isIncoming = false;
+					try {
+						isIncoming = message.receiverId == studentDatabaseHelper.getUserId(user.getUserName());
+					} catch (SQLException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+                    
+                    Label fromToLabel = new Label(isIncoming ? "From: " + message.senderName : "To: " + message.receiverName);
+                    fromToLabel.setStyle("-fx-font-weight: bold;");
+                    
+                    Label dateLabel = new Label(message.createDate.toLocalDateTime().format(formatter));
+                    dateLabel.setStyle("-fx-font-size: 11px;");
+                    
+                    HBox.setHgrow(dateLabel, Priority.ALWAYS);
+                    dateLabel.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
+                    
+                    headerBox.getChildren().addAll(fromToLabel, dateLabel);
+                    
+                    // If unread and an incoming message, highlight it
+                    if (!message.isRead && isIncoming) {
+                        Label unreadLabel = new Label("[Unread]");
+                        unreadLabel.setTextFill(Color.RED);
+                        unreadLabel.setStyle("-fx-font-weight: bold;");
+                        headerBox.getChildren().add(unreadLabel);
+                        setStyle("-fx-background-color: #f0f8ff;"); // Light blue background for unread
+                    } else {
+                        setStyle("");
+                    }
+                    
+                    // Message preview (first 50 chars)
+                    String preview = message.content.length() > 50 ? 
+                            message.content.substring(0, 47) + "..." : message.content;
+                    Label previewLabel = new Label(preview);
+                    previewLabel.setWrapText(true);
+                    
+                    // Related content info
+                    String relatedInfo = "";
+                    try {
+                        if (message.relatedQuestionId != -1) {
+                            QuestionData question = studentDatabaseHelper.getQuestionById(message.relatedQuestionId);
+                            if (question != null) {
+                                relatedInfo = "Re: Question \"" + question.title + "\"";
+                            }
+                        } else if (message.relatedAnswerId != -1) {
+                            AnswerData answer = studentDatabaseHelper.getAnswerById(message.relatedAnswerId);
+                            if (answer != null) {
+                                relatedInfo = "Re: Answer to a question";
+                            }
+                        }
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                    
+                    if (!relatedInfo.isEmpty()) {
+                        Label relatedLabel = new Label(relatedInfo);
+                        relatedLabel.setStyle("-fx-font-style: italic; -fx-font-size: 11px;");
+                        container.getChildren().addAll(headerBox, previewLabel, relatedLabel);
+                    } else {
+                        container.getChildren().addAll(headerBox, previewLabel);
+                    }
+                    
+                    setGraphic(container);
+                    setText(null);
+                }
+            }
+        });
+        
+        messagesListBox.getChildren().addAll(messagesLabel, messagesListView);
+        
+        // Right side: Message content and reply
+        VBox messageContentBox = new VBox(10);
+        messageContentBox.setPadding(new Insets(5));
+        
+        Label messageDetailLabel = new Label("Message Details");
+        messageDetailLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        
+        // Message content area
+        TextArea messageContentArea = new TextArea();
+        messageContentArea.setEditable(false);
+        messageContentArea.setWrapText(true);
+        messageContentArea.setPrefHeight(200);
+        VBox.setVgrow(messageContentArea, Priority.ALWAYS);
+        
+        // Reply section
+        Label replyLabel = new Label("Reply");
+        replyLabel.setStyle("-fx-font-weight: bold;");
+        
+        TextArea replyArea = new TextArea();
+        replyArea.setPromptText("Type your reply here...");
+        replyArea.setPrefHeight(100);
+        
+        Button sendReplyButton = new Button("Send Reply");
+        sendReplyButton.setMaxWidth(Double.MAX_VALUE);
+        
+        messageContentBox.getChildren().addAll(messageDetailLabel, messageContentArea, replyLabel, replyArea, sendReplyButton);
+        
+        // Add both sides to the split pane
+        splitPane.getItems().addAll(messagesListBox, messageContentBox);
+        splitPane.setDividerPositions(0.4);
+        VBox.setVgrow(splitPane, Priority.ALWAYS);
+        
+        // Handle message selection
+        messagesListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                messageContentArea.setText(newVal.content);
+                
+                // If this is an incoming message and it's unread, mark it as read
+                try {
+                    int currentUserId = studentDatabaseHelper.getUserId(user.getUserName());
+                    if (newVal.receiverId == currentUserId && !newVal.isRead) {
+                        studentDatabaseHelper.markMessageAsRead(newVal.id, currentUserId);
+                        
+                        // Refresh the list to update the unread status
+                        refreshMessagesList(messagesListView);
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                    showError("Error marking message as read: " + e.getMessage());
+                }
+            } else {
+                messageContentArea.clear();
+            }
+        });
+        
+        // Handle reply button
+        sendReplyButton.setOnAction(e -> {
+            MessageData selectedMessage = messagesListView.getSelectionModel().getSelectedItem();
+            if (selectedMessage != null && !replyArea.getText().trim().isEmpty()) {
+                try {
+                    int currentUserId = studentDatabaseHelper.getUserId(user.getUserName());
+                    int recipientId = (selectedMessage.senderId == currentUserId) ? 
+                            selectedMessage.receiverId : selectedMessage.senderId;
+                    
+                    int messageId = studentDatabaseHelper.sendMessage(
+                            currentUserId, 
+                            recipientId, 
+                            selectedMessage.relatedQuestionId, 
+                            selectedMessage.relatedAnswerId, 
+                            replyArea.getText().trim());
+                    
+                    if (messageId != -1) {
+                        replyArea.clear();
+                        showSuccess("Reply sent successfully!");
+                        
+                        // Refresh the messages list
+                        refreshMessagesList(messagesListView);
+                    } else {
+                        showError("Failed to send reply");
+                    }
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                    showError("Error sending reply: " + ex.getMessage());
+                }
+            } else if (replyArea.getText().trim().isEmpty()) {
+                showError("Reply cannot be empty");
+            } else {
+                showError("Please select a message to reply to");
+            }
+        });
+        
+        // Add a refresh button
+        Button refreshButton = new Button("Refresh Messages");
+        refreshButton.setOnAction(e -> refreshMessagesList(messagesListView));
+        
+        messagesLayout.getChildren().addAll(refreshButton, splitPane);
+        
+        // Initial loading of messages
+        try {
+            int userId = studentDatabaseHelper.getUserId(user.getUserName());
+            List<MessageData> messages = studentDatabaseHelper.getMessagesForUser(userId);
+            messagesListView.setItems(FXCollections.observableArrayList(messages));
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showError("Error loading messages: " + e.getMessage());
+        }
+        
+        return messagesLayout;
+    }
+    
+    /**
+     * Helper method to refresh the messages list
+     */
+    private void refreshMessagesList(ListView<MessageData> messagesListView) {
+        try {
+            int userId = studentDatabaseHelper.getUserId(user.getUserName());
+            List<MessageData> messages = studentDatabaseHelper.getMessagesForUser(userId);
+            messagesListView.setItems(FXCollections.observableArrayList(messages));
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showError("Error refreshing messages: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Check for unread messages and update UI indicators
+     */
+    private void checkForUnreadMessages() {
+        try {
+            int userId = studentDatabaseHelper.getUserId(user.getUserName());
+            List<MessageData> unreadMessages = studentDatabaseHelper.getUnreadMessagesForUser(userId);
+            
+            if (!unreadMessages.isEmpty()) {
+                // Update the Messages tab to indicate unread messages
+                Tab messagesTab = tabPane.getTabs().stream()
+                        .filter(tab -> tab.getText().startsWith("Messages"))
+                        .findFirst()
+                        .orElse(null);
+                
+                if (messagesTab != null) {
+                    messagesTab.setText("Messages (" + unreadMessages.size() + ")");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.err.println("Error checking for unread messages: " + e.getMessage());
+        }
     }
 }

@@ -203,6 +203,19 @@ public class studentDatabase {
                 + "FOREIGN KEY (answerId) REFERENCES answers(id), "
                 + "FOREIGN KEY (userId) REFERENCES cse360users(id))";
         statement.execute(feedbackTable);
+        
+        String messagesTable = "CREATE TABLE IF NOT EXISTS messages ("
+                + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                + "senderId INT, "
+                + "receiverId INT, "
+                + "relatedQuestionId INT, "
+                + "relatedAnswerId INT, "
+                + "content TEXT, "
+                + "isRead BOOLEAN DEFAULT FALSE, "
+                + "createDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                + "FOREIGN KEY (senderId) REFERENCES cse360users(id), "
+                + "FOREIGN KEY (receiverId) REFERENCES cse360users(id))";
+        statement.execute(messagesTable);
     }
 
     // Question Management Methods
@@ -520,6 +533,34 @@ public class studentDatabase {
     	return reviews;
     }
     
+    /**
+     * Get all reviews written by a specific reviewer
+     * @param reviewerId The ID of the reviewer
+     * @return List of ReviewData objects
+     * @throws SQLException
+     */
+    public List<ReviewData> getReviewsByReviewer(int reviewerId) throws SQLException {
+        List<ReviewData> reviews = new ArrayList<>();
+        String query = "SELECT * FROM reviews WHERE reviewerId = ?";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, reviewerId);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                ReviewData review = new ReviewData(
+                    rs.getInt("id"),
+                    reviewerId,
+                    rs.getInt("questionId"),
+                    rs.getInt("answerId"),
+                    rs.getString("content")
+                );
+                reviews.add(review);
+            }
+        }
+        
+        return reviews;
+    }
+    
     public boolean deleteReview(int reviewId, int reviewerId, int questionId, int answerId) throws SQLException {
     	String query = "DELETE FROM reviews WHERE id = ? AND reviewerId = ? and questionId = ? and answerId = ?";
     	try (PreparedStatement pstmt = connection.prepareStatement(query)) {
@@ -621,6 +662,167 @@ public class studentDatabase {
             se.printStackTrace();
         }
     }
+    
+    /**
+     * Sends a message from one user to another
+     * @param senderId The ID of the sender
+     * @param receiverId The ID of the receiver
+     * @param relatedQuestionId The ID of the related question, or -1 if not related to a question
+     * @param relatedAnswerId The ID of the related answer, or -1 if not related to an answer
+     * @param content The message content
+     * @return The ID of the new message, or -1 if failed
+     * @throws SQLException
+     */
+    public int sendMessage(int senderId, int receiverId, int relatedQuestionId, int relatedAnswerId, String content) throws SQLException {
+        String query = "INSERT INTO messages (senderId, receiverId, relatedQuestionId, relatedAnswerId, content) VALUES (?, ?, ?, ?, ?)";
+        try (PreparedStatement pstmt = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
+            pstmt.setInt(1, senderId);
+            pstmt.setInt(2, receiverId);
+            pstmt.setInt(3, relatedQuestionId);
+            pstmt.setInt(4, relatedAnswerId);
+            pstmt.setString(5, content);
+            pstmt.executeUpdate();
+            
+            ResultSet rs = pstmt.getGeneratedKeys();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        }
+        return -1;
+    }
+    
+    /**
+     * Gets all messages for a user
+     * @param userId The ID of the user
+     * @return List of MessageData objects
+     * @throws SQLException
+     */
+    public List<MessageData> getMessagesForUser(int userId) throws SQLException {
+        List<MessageData> messages = new ArrayList<>();
+        String query = "SELECT m.*, " +
+                       "sender.userName as senderName, " +
+                       "receiver.userName as receiverName " +
+                       "FROM messages m " +
+                       "JOIN cse360users sender ON m.senderId = sender.id " +
+                       "JOIN cse360users receiver ON m.receiverId = receiver.id " +
+                       "WHERE m.receiverId = ? OR m.senderId = ? " +
+                       "ORDER BY m.createDate DESC";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, userId);
+            pstmt.setInt(2, userId);
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                MessageData message = new MessageData(
+                    rs.getInt("id"),
+                    rs.getInt("senderId"),
+                    rs.getInt("receiverId"),
+                    rs.getString("senderName"),
+                    rs.getString("receiverName"),
+                    rs.getInt("relatedQuestionId"),
+                    rs.getInt("relatedAnswerId"),
+                    rs.getString("content"),
+                    rs.getBoolean("isRead"),
+                    rs.getTimestamp("createDate")
+                );
+                messages.add(message);
+            }
+        }
+        return messages;
+    }
+
+    /**
+     * Gets all unread messages for a user
+     * @param userId The ID of the user
+     * @return List of MessageData objects
+     * @throws SQLException
+     */
+    public List<MessageData> getUnreadMessagesForUser(int userId) throws SQLException {
+        List<MessageData> messages = new ArrayList<>();
+        String query = "SELECT m.*, " +
+                       "sender.userName as senderName, " +
+                       "receiver.userName as receiverName " +
+                       "FROM messages m " +
+                       "JOIN cse360users sender ON m.senderId = sender.id " +
+                       "JOIN cse360users receiver ON m.receiverId = receiver.id " +
+                       "WHERE m.receiverId = ? AND m.isRead = FALSE " +
+                       "ORDER BY m.createDate DESC";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            
+            while (rs.next()) {
+                MessageData message = new MessageData(
+                    rs.getInt("id"),
+                    rs.getInt("senderId"),
+                    rs.getInt("receiverId"),
+                    rs.getString("senderName"),
+                    rs.getString("receiverName"),
+                    rs.getInt("relatedQuestionId"),
+                    rs.getInt("relatedAnswerId"),
+                    rs.getString("content"),
+                    rs.getBoolean("isRead"),
+                    rs.getTimestamp("createDate")
+                );
+                messages.add(message);
+            }
+        }
+        return messages;
+    }
+
+    /**
+     * Marks a message as read
+     * @param messageId The ID of the message
+     * @param userId The ID of the user (to ensure they are the recipient)
+     * @return true if successful, false otherwise
+     * @throws SQLException
+     */
+    public boolean markMessageAsRead(int messageId, int userId) throws SQLException {
+        String query = "UPDATE messages SET isRead = TRUE WHERE id = ? AND receiverId = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, messageId);
+            pstmt.setInt(2, userId);
+            return pstmt.executeUpdate() > 0;
+        }
+    }
+
+    /**
+     * Gets user ID for question owner
+     * @param questionId The ID of the question
+     * @return The user ID of the question owner
+     * @throws SQLException
+     */
+    public int getQuestionOwnerId(int questionId) throws SQLException {
+        String query = "SELECT userId FROM questions WHERE id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, questionId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("userId");
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Gets user ID for answer owner
+     * @param answerId The ID of the answer
+     * @return The user ID of the answer owner
+     * @throws SQLException
+     */
+    public int getAnswerOwnerId(int answerId) throws SQLException {
+        String query = "SELECT userId FROM answers WHERE id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, answerId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("userId");
+            }
+        }
+        return -1;
+    }
 }
 
 // Data classes for returning results
@@ -705,6 +907,34 @@ class FeedbackData {
         this.id = id;
         this.content = content;
         this.userName = userName;
+        this.createDate = createDate;
+    }
+}
+
+class MessageData {
+    public final int id;
+    public final int senderId;
+    public final int receiverId;
+    public final String senderName;
+    public final String receiverName;
+    public final int relatedQuestionId;
+    public final int relatedAnswerId;
+    public final String content;
+    public final boolean isRead;
+    public final Timestamp createDate;
+
+    public MessageData(int id, int senderId, int receiverId, String senderName, String receiverName, 
+                      int relatedQuestionId, int relatedAnswerId, String content, 
+                      boolean isRead, Timestamp createDate) {
+        this.id = id;
+        this.senderId = senderId;
+        this.receiverId = receiverId;
+        this.senderName = senderName;
+        this.receiverName = receiverName;
+        this.relatedQuestionId = relatedQuestionId;
+        this.relatedAnswerId = relatedAnswerId;
+        this.content = content;
+        this.isRead = isRead;
         this.createDate = createDate;
     }
 }

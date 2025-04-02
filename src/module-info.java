@@ -1,7 +1,7 @@
-module FoundationCode {
+module CSE360group {
 	requires javafx.controls;
 	requires java.sql;
-	//requires junit;
+	requires junit;
 	
 	opens application to javafx.graphics, javafx.fxml;
 }
