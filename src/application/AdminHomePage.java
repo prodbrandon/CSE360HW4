@@ -38,7 +38,6 @@ public class AdminHomePage {
             try {
 				new ViewUserListPage().show(databaseHelper, primaryStage, adminUserName);
 			} catch (SQLException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
         });
