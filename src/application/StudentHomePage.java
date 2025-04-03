@@ -360,14 +360,11 @@ public class StudentHomePage {
                     // Try to get reviewer name
                     String reviewerName = "Reviewer";
                     try {
-                        // Ideally would use: reviewerName = studentDatabaseHelper.getReviewerName(review.reviewerId);
-                        // But for now use a placeholder until that method is added
                         reviewerName = "Reviewer #" + review.reviewerId;
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
                     
-                    // Metadata line
                     Label reviewerLabel = new Label("By: " + reviewerName);
                     reviewerLabel.setStyle("-fx-font-style: italic;");
                     
@@ -455,14 +452,11 @@ public class StudentHomePage {
         
         reviewsOnMyAnswersTab.setContent(reviewsOnMyAnswersListView);
         
-        // Load my questions when tab is selected
+        // Load questions when tab is selected
         myQuestionsTab.setOnSelectionChanged(e -> {
             if (myQuestionsTab.isSelected()) {
                 try {
                     int userId = studentDatabaseHelper.getUserId("testuser");
-                    // This would need to be implemented in studentDatabase.java:
-                    // myQuestionsListView.setItems(FXCollections.observableArrayList(
-                    //     studentDatabaseHelper.getQuestionsForUser(userId)));
                 } catch (SQLException ex) {
                     ex.printStackTrace();
                     showError("Error loading your questions: " + ex.getMessage());
@@ -475,9 +469,6 @@ public class StudentHomePage {
             if (myAnswersTab.isSelected()) {
                 try {
                     int userId = studentDatabaseHelper.getUserId("testuser");
-                    // This would need to be implemented in studentDatabase.java:
-                    // myAnswersListView.setItems(FXCollections.observableArrayList(
-                    //     studentDatabaseHelper.getAnswersForUser(userId)));
                 } catch (SQLException ex) {
                     ex.printStackTrace();
                     showError("Error loading your answers: " + ex.getMessage());
@@ -621,8 +612,6 @@ public class StudentHomePage {
                     // If this answer is the one that resolved the question
                     if (selectedQuestion != null && selectedQuestion.resolved) {
                         try {
-                            // This would need additional database method to check
-                            // if this answer is the resolved one for the question
                             boolean isResolvedAnswer = false; // placeholder
                             if (isResolvedAnswer) {
                                 Label resolvedAnswerLabel = new Label("[Selected Solution]");
@@ -658,10 +647,9 @@ public class StudentHomePage {
         
         contextMenu.getItems().addAll(editItem, deleteItem);
         
-        // Add dynamic menu items based on question selection
+        // Dynamic menu items
         questionListView.getSelectionModel().selectedItemProperty().addListener(
             (obs, oldSelection, newSelection) -> {
-                // Remove any existing resolve/unresolve menu items
                 contextMenu.getItems().removeIf(item -> 
                     item.getText().equals("Mark as Resolved") || 
                     item.getText().equals("Unmark as Resolved"));
@@ -703,11 +691,11 @@ public class StudentHomePage {
         
         contextMenu.getItems().addAll(editItem, deleteItem, clarificationItem, markResolvedItem);
         
-        // Update the clarification menu item text based on the selected answer
+        // Update the clarification menu item text
         answerListView.getSelectionModel().selectedItemProperty().addListener(
             (obs, oldSelection, newSelection) -> {
                 if (newSelection != null) {
-                    // Find the clarification menu item and update it
+                    // Updating clarification update item
                     for (MenuItem item : contextMenu.getItems()) {
                         if (item.getText().equals("Needs Clarification") ||
                             item.getText().equals("Remove Clarification Tag")) {
@@ -739,14 +727,12 @@ public class StudentHomePage {
                     questions.setAll(myQuestions);
                     break;
                 case "Resolved":
-                    // Placeholder: Filter by resolved status
                     List<QuestionData> allQuestions = studentDatabaseHelper.getQuestions();
                     questions.setAll(allQuestions.stream()
                         .filter(q -> q.resolved)
                         .collect(java.util.stream.Collectors.toList()));
                     break;
                 case "Unresolved":
-                    // Placeholder: Filter by unresolved status
                     List<QuestionData> allUnresolvedQuestions = studentDatabaseHelper.getQuestions();
                     questions.setAll(allUnresolvedQuestions.stream()
                         .filter(q -> !q.resolved)
@@ -829,7 +815,7 @@ public class StudentHomePage {
                     answerTextArea.clear();
                     loadAllQuestions();
                     
-                    // After submitting an answer, check if there are any reviews for similar answers
+                    // Check if any reviews for similar answers
                     List<ReviewData> questionReviews = studentDatabaseHelper.getReviewsForQuestion(selectedQuestion.id);
                     if (!questionReviews.isEmpty()) {
                         showInfo("This question has " + questionReviews.size() + 
