@@ -140,6 +140,19 @@ public class studentDatabase {
         }
     }
     
+    private void createTrustedReviewersTable() throws SQLException {
+        String trustedReviewersTable = "CREATE TABLE IF NOT EXISTS trusted_reviewers ("
+            + "id INT AUTO_INCREMENT PRIMARY KEY, "
+            + "userId INT, "
+            + "reviewerId INT, "
+            + "createDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+            + "FOREIGN KEY (userId) REFERENCES cse360users(id), "
+            + "FOREIGN KEY (reviewerId) REFERENCES reviewers(id), "
+            + "UNIQUE (userId, reviewerId))";
+        statement.execute(trustedReviewersTable);
+    }
+
+    // Modify the createTables method to call createTrustedReviewersTable
     private void createTables() throws SQLException {
         // Original user table
         String userTable = "CREATE TABLE IF NOT EXISTS cse360users ("
@@ -188,8 +201,6 @@ public class studentDatabase {
         		+ "questionId INT, "
         		+ "answerId INT, "
         		+ "content TEXT, "
-//        		+ "FOREIGN KEY (questionId) REFERENCES questions(id), "
-//        		+ "FOREIGN KEY (answerId) REFERENCES answers(id), "
                 + "FOREIGN KEY (reviewerId) REFERENCES reviewers(id))";
         statement.execute(reviewsTable);
 
@@ -216,6 +227,168 @@ public class studentDatabase {
                 + "FOREIGN KEY (senderId) REFERENCES cse360users(id), "
                 + "FOREIGN KEY (receiverId) REFERENCES cse360users(id))";
         statement.execute(messagesTable);
+        
+        // Create trusted reviewers table
+        createTrustedReviewersTable();
+    }
+    
+    /**
+     * Adds a trusted reviewer for a user
+     * @param userId The ID of the user
+     * @param reviewerId The ID of the reviewer to trust
+     * @throws SQLException
+     */
+    public void addTrustedReviewer(int userId, int reviewerId) throws SQLException {
+        // First check if the trust relationship already exists
+        String checkQuery = "SELECT COUNT(*) FROM trusted_reviewers WHERE userId = ? AND reviewerId = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(checkQuery)) {
+            pstmt.setInt(1, userId);
+            pstmt.setInt(2, reviewerId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next() && rs.getInt(1) > 0) {
+                // Relationship exists, update the timestamp
+                String updateQuery = "UPDATE trusted_reviewers SET createDate = CURRENT_TIMESTAMP WHERE userId = ? AND reviewerId = ?";
+                try (PreparedStatement updateStmt = connection.prepareStatement(updateQuery)) {
+                    updateStmt.setInt(1, userId);
+                    updateStmt.setInt(2, reviewerId);
+                    updateStmt.executeUpdate();
+                }
+            } else {
+                // Relationship doesn't exist, insert new record
+                String insertQuery = "INSERT INTO trusted_reviewers (userId, reviewerId) VALUES (?, ?)";
+                try (PreparedStatement insertStmt = connection.prepareStatement(insertQuery)) {
+                    insertStmt.setInt(1, userId);
+                    insertStmt.setInt(2, reviewerId);
+                    insertStmt.executeUpdate();
+                }
+            }
+        }
+    }
+
+    /**
+     * Removes a trusted reviewer for a user
+     * @param userId The ID of the user
+     * @param reviewerId The ID of the reviewer to untrust
+     * @throws SQLException
+     */
+    public void removeTrustedReviewer(int userId, int reviewerId) throws SQLException {
+        String query = "DELETE FROM trusted_reviewers WHERE userId = ? AND reviewerId = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, userId);
+            pstmt.setInt(2, reviewerId);
+            pstmt.executeUpdate();
+        }
+    }
+
+    /**
+     * Checks if a reviewer is trusted by a user
+     * @param userId The ID of the user
+     * @param reviewerId The ID of the reviewer
+     * @return True if the reviewer is trusted, false otherwise
+     * @throws SQLException
+     */
+    public boolean isReviewerTrusted(int userId, int reviewerId) throws SQLException {
+        String query = "SELECT COUNT(*) FROM trusted_reviewers WHERE userId = ? AND reviewerId = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, userId);
+            pstmt.setInt(2, reviewerId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1) > 0;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Gets a list of trusted reviewer IDs for a user
+     * @param userId The ID of the user
+     * @return List of trusted reviewer IDs
+     * @throws SQLException
+     */
+    public List<Integer> getTrustedReviewerIds(int userId) throws SQLException {
+        List<Integer> reviewerIds = new ArrayList<>();
+        String query = "SELECT reviewerId FROM trusted_reviewers WHERE userId = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                reviewerIds.add(rs.getInt("reviewerId"));
+            }
+        }
+        return reviewerIds;
+    }
+
+    /**
+     * Gets all trusted reviewers for a user with reviewer details
+     * @param userId The ID of the user
+     * @return List of ReviewerRecord objects for trusted reviewers
+     * @throws SQLException
+     */
+    public List<ReviewerRecord> getTrustedReviewers(int userId) throws SQLException {
+        List<ReviewerRecord> trustedReviewers = new ArrayList<>();
+        
+        // Fixed SQL query to use correct column names
+        String query = "SELECT r.id as reviewerId, u.userName, r.weight FROM trusted_reviewers tr "
+                     + "JOIN reviewers r ON tr.reviewerId = r.id "
+                     + "JOIN cse360users u ON r.userId = u.id "
+                     + "WHERE tr.userId = ?";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                ReviewerRecord reviewer = new ReviewerRecord(
+                    rs.getInt("reviewerId"),
+                    rs.getString("userName"),
+                    rs.getDouble("weight")
+                );
+                trustedReviewers.add(reviewer);
+            }
+        }
+        return trustedReviewers;
+    }
+
+    /**
+     * Gets reviews only from trusted reviewers
+     * @param userId The ID of the user
+     * @param questionId The ID of the question to filter by (optional, use -1 for all)
+     * @return List of ReviewData objects from trusted reviewers
+     * @throws SQLException
+     */
+    public List<ReviewData> getTrustedReviews(int userId, int questionId) throws SQLException {
+        List<ReviewData> trustedReviews = new ArrayList<>();
+        
+        String query = "SELECT r.* FROM reviews r "
+                     + "JOIN trusted_reviewers tr ON r.reviewerId = tr.reviewerId "
+                     + "WHERE tr.userId = ? ";
+        
+        if (questionId > 0) {
+            query += "AND r.questionId = ? ";
+        }
+        
+        query += "ORDER BY r.id DESC";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, userId);
+            if (questionId > 0) {
+                pstmt.setInt(2, questionId);
+            }
+            
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                ReviewData review = new ReviewData(
+                    rs.getInt("id"),
+                    rs.getInt("reviewerId"),
+                    rs.getInt("questionId"),
+                    rs.getInt("answerId"),
+                    rs.getString("content")
+                );
+                trustedReviews.add(review);
+            }
+        }
+        
+        return trustedReviews;
     }
 
     // Question Management Methods
