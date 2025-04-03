@@ -13,6 +13,7 @@ import javafx.util.Callback;
 
 import java.sql.SQLException;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,13 +48,29 @@ public class StudentHomePage {
     private ListView<ReviewData> reviewListView;
     private ObservableList<ReviewData> reviews = FXCollections.observableArrayList();
     
+    private int currentUserId; // Store the ID of the current user
+    private CheckBox showTrustedOnlyCheckBox; // Checkbox to filter reviews
+    private ObservableList<ReviewData> allReviews = FXCollections.observableArrayList(); // All reviews
+    private List<Integer> trustedReviewerIds = new ArrayList<>(); // List of trusted reviewer IDs
+
+    
     /**
      * Constructor initializes the student database helper
      * @param studentDatabaseHelper The database helper for database operations
      */
+ // Update the constructor to initialize the user ID
     public StudentHomePage(studentDatabase studentDatabaseHelper) {
         this.studentDatabaseHelper = studentDatabaseHelper;
+        
+        // Get the current user ID (using test user)
+        try {
+            this.currentUserId = studentDatabaseHelper.getUserId("testuser");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            this.currentUserId = -1;
+        }
     }
+
     
     /**
      * Shows the student home page in the provided stage
@@ -74,8 +91,13 @@ public class StudentHomePage {
         myActivityTab.setClosable(false);
         myActivityTab.setContent(createMyActivityTabContent());
         
+        // Trusted Reviewers Tab
+        Tab trustedReviewersTab = new Tab("Trusted Reviewers");
+        trustedReviewersTab.setClosable(false);
+        trustedReviewersTab.setContent(createTrustedReviewersTabContent());
+        
         // Add tabs to the TabPane
-        tabPane.getTabs().addAll(qaTab, myActivityTab);
+        tabPane.getTabs().addAll(qaTab, myActivityTab, trustedReviewersTab);
         
         // Create scene and set it on the stage
         Scene scene = new Scene(tabPane, 1000, 700);
@@ -85,6 +107,16 @@ public class StudentHomePage {
         
         // Load initial data
         loadAllQuestions();
+        loadTrustedReviewerIds();
+    }
+    
+    private void loadTrustedReviewerIds() {
+        try {
+            trustedReviewerIds = studentDatabaseHelper.getTrustedReviewerIds(currentUserId);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showError("Error loading trusted reviewers: " + e.getMessage());
+        }
     }
     
     /**
@@ -311,10 +343,7 @@ public class StudentHomePage {
         return answersBox;
     }
 
-    /**
-     * Creates the reviews section to display reviews for answers
-     * @return VBox containing the reviews list
-     */
+ // Modify the createReviewsSection method to include trust filter
     private VBox createReviewsSection() {
         VBox reviewsBox = new VBox(10);
         reviewsBox.setPadding(new Insets(10));
@@ -323,19 +352,204 @@ public class StudentHomePage {
         Label reviewsLabel = new Label("Reviews");
         reviewsLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
         
+        // Add trusted reviewers filter checkbox
+        showTrustedOnlyCheckBox = new CheckBox("Show Trusted Reviewers Only");
+        showTrustedOnlyCheckBox.setOnAction(e -> applyTrustFilter());
+        
         // Reviews list view
         reviewListView = new ListView<>(reviews);
         reviewListView.setId("reviewListView");
         VBox.setVgrow(reviewListView, Priority.ALWAYS);
         
-        // Custom cell factory for review items
-        reviewListView.setCellFactory(createReviewCellFactory());
+        // Store all reviews
+        allReviews = reviews;
         
-        reviewsBox.getChildren().addAll(reviewsLabel, reviewListView);
+        // Custom cell factory for review items with trust buttons
+        reviewListView.setCellFactory(lv -> new ListCell<ReviewData>() {
+            @Override
+            protected void updateItem(ReviewData review, boolean empty) {
+                super.updateItem(review, empty);
+                
+                if (empty || review == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    VBox container = new VBox(5);
+                    container.setPadding(new Insets(5));
+                    
+                    // Review content
+                    Label contentLabel = new Label(review.content);
+                    contentLabel.setWrapText(true);
+                    
+                    // Try to get reviewer name
+                    String reviewerName = "Reviewer";
+                    boolean isTrusted = false;
+                    
+                    try {
+                        reviewerName = studentDatabaseHelper.getReviewerName(review.reviewerId);
+                        isTrusted = trustedReviewerIds.contains(review.reviewerId);
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                        reviewerName = "Reviewer #" + review.reviewerId;
+                    }
+                    
+                    // Metadata line
+                    HBox metaBox = new HBox(10);
+                    Label reviewerLabel = new Label("By: " + reviewerName);
+                    reviewerLabel.setStyle("-fx-font-style: italic;");
+                    
+                    // Trust status indicator
+                    Label trustLabel = new Label(isTrusted ? "[Trusted]" : "");
+                    trustLabel.setTextFill(Color.GREEN);
+                    trustLabel.setStyle("-fx-font-weight: bold;");
+                    
+                    // Trust/Untrust button
+                    Button trustButton = new Button(isTrusted ? "Untrust Reviewer" : "Trust Reviewer");
+                    trustButton.setOnAction(e -> toggleTrustStatus(review.reviewerId, trustButton, trustLabel));
+                    
+                    metaBox.getChildren().addAll(reviewerLabel, trustLabel, trustButton);
+                    
+                    container.getChildren().addAll(contentLabel, metaBox);
+                    setGraphic(container);
+                    setText(null);
+                }
+            }
+        });
+        
+        reviewsBox.getChildren().addAll(reviewsLabel, showTrustedOnlyCheckBox, reviewListView);
         
         return reviewsBox;
     }
     
+    
+ // Add method to toggle trust status
+    private void toggleTrustStatus(int reviewerId, Button trustButton, Label trustLabel) {
+        try {
+            boolean currentlyTrusted = trustedReviewerIds.contains(reviewerId);
+            
+            if (currentlyTrusted) {
+                // Remove trust
+                studentDatabaseHelper.removeTrustedReviewer(currentUserId, reviewerId);
+                trustButton.setText("Trust Reviewer");
+                trustLabel.setText("");
+                trustedReviewerIds.remove(Integer.valueOf(reviewerId));
+                showSuccess("Reviewer removed from trusted list");
+            } else {
+                // Add trust
+                studentDatabaseHelper.addTrustedReviewer(currentUserId, reviewerId);
+                trustButton.setText("Untrust Reviewer");
+                trustLabel.setText("[Trusted]");
+                trustedReviewerIds.add(reviewerId);
+                showSuccess("Reviewer added to trusted list");
+            }
+            
+            // Reapply filter if active
+            if (showTrustedOnlyCheckBox.isSelected()) {
+                applyTrustFilter();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showError("Error updating trust status: " + e.getMessage());
+        }
+    }
+    
+    private void applyTrustFilter() {
+        if (showTrustedOnlyCheckBox.isSelected()) {
+            // Filter reviews to only show trusted reviewers
+            List<ReviewData> filteredReviews = allReviews.stream()
+                .filter(review -> trustedReviewerIds.contains(review.reviewerId))
+                .collect(java.util.stream.Collectors.toList());
+            
+            reviewListView.setItems(FXCollections.observableArrayList(filteredReviews));
+            
+            if (filteredReviews.isEmpty() && !allReviews.isEmpty()) {
+                showInfo("No reviews from trusted reviewers. Consider adding more trusted reviewers.");
+            }
+        } else {
+            // Show all reviews
+            reviewListView.setItems(allReviews);
+        }
+    }
+    
+ // Add method to create trusted reviewers tab content
+    private VBox createTrustedReviewersTabContent() {
+        VBox trustedReviewersLayout = new VBox(10);
+        trustedReviewersLayout.setPadding(new Insets(10));
+        
+        Label headerLabel = new Label("Your Trusted Reviewers");
+        headerLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        
+        // Create list view for trusted reviewers
+        ListView<ReviewerRecord> trustedReviewersListView = new ListView<>();
+        VBox.setVgrow(trustedReviewersListView, Priority.ALWAYS);
+        
+        // Load trusted reviewers
+        try {
+            List<ReviewerRecord> trustedReviewers = studentDatabaseHelper.getTrustedReviewers(currentUserId);
+            trustedReviewersListView.setItems(FXCollections.observableArrayList(trustedReviewers));
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showError("Error loading trusted reviewers: " + e.getMessage());
+        }
+        
+        // Custom cell factory for trusted reviewers
+        trustedReviewersListView.setCellFactory(lv -> new ListCell<ReviewerRecord>() {
+            @Override
+            protected void updateItem(ReviewerRecord reviewer, boolean empty) {
+                super.updateItem(reviewer, empty);
+                
+                if (empty || reviewer == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    HBox container = new HBox(10);
+                    container.setPadding(new Insets(5));
+                    
+                    Label nameLabel = new Label(reviewer.userName);
+                    nameLabel.setPrefWidth(200);
+                    
+                    Button removeButton = new Button("Remove Trust");
+                    removeButton.setOnAction(e -> {
+                        try {
+                            studentDatabaseHelper.removeTrustedReviewer(currentUserId, reviewer.reviewerId);
+                            showSuccess("Reviewer removed from trusted list");
+                            
+                            // Remove from trusted IDs list
+                            trustedReviewerIds.remove(Integer.valueOf(reviewer.reviewerId));
+                            
+                            // Refresh the list
+                            List<ReviewerRecord> updatedList = studentDatabaseHelper.getTrustedReviewers(currentUserId);
+                            trustedReviewersListView.setItems(FXCollections.observableArrayList(updatedList));
+                            
+                            // Reapply the filter if active
+                            if (showTrustedOnlyCheckBox != null && showTrustedOnlyCheckBox.isSelected()) {
+                                applyTrustFilter();
+                            }
+                        } catch (SQLException ex) {
+                            ex.printStackTrace();
+                            showError("Error removing trusted reviewer: " + ex.getMessage());
+                        }
+                    });
+                    
+                    container.getChildren().addAll(nameLabel, removeButton);
+                    setGraphic(container);
+                    setText(null);
+                }
+            }
+        });
+        
+        // Add explanation text
+        Label explanationLabel = new Label(
+            "Trusted reviewers are those whose opinions you value highly. " +
+            "Their reviews will be highlighted and can be filtered to show only their feedback."
+        );
+        explanationLabel.setWrapText(true);
+        
+        trustedReviewersLayout.getChildren().addAll(headerLabel, explanationLabel, trustedReviewersListView);
+        
+        return trustedReviewersLayout;
+    }
+
     /**
      * Creates a cell factory for review items in a list view
      * @return CellFactory for ReviewData
@@ -452,11 +666,22 @@ public class StudentHomePage {
         
         reviewsOnMyAnswersTab.setContent(reviewsOnMyAnswersListView);
         
+        // Trusted Reviews tab
+        Tab trustedReviewsTab = new Tab("Trusted Reviews");
+        trustedReviewsTab.setClosable(false);
+        
+        ListView<ReviewData> trustedReviewsListView = new ListView<>();
+        trustedReviewsListView.setCellFactory(createReviewCellFactory());
+        
+        trustedReviewsTab.setContent(trustedReviewsListView);
+        
         // Load questions when tab is selected
         myQuestionsTab.setOnSelectionChanged(e -> {
             if (myQuestionsTab.isSelected()) {
                 try {
                     int userId = studentDatabaseHelper.getUserId("testuser");
+                    List<QuestionData> myQuestions = studentDatabaseHelper.getQuestionsForUser(userId);
+                    myQuestionsListView.setItems(FXCollections.observableArrayList(myQuestions));
                 } catch (SQLException ex) {
                     ex.printStackTrace();
                     showError("Error loading your questions: " + ex.getMessage());
@@ -469,6 +694,8 @@ public class StudentHomePage {
             if (myAnswersTab.isSelected()) {
                 try {
                     int userId = studentDatabaseHelper.getUserId("testuser");
+                    List<AnswerData> myAnswers = studentDatabaseHelper.getAnswersForUser(userId);
+                    myAnswersListView.setItems(FXCollections.observableArrayList(myAnswers));
                 } catch (SQLException ex) {
                     ex.printStackTrace();
                     showError("Error loading your answers: " + ex.getMessage());
@@ -490,8 +717,21 @@ public class StudentHomePage {
             }
         });
         
+        // Load trusted reviews when tab is selected
+        trustedReviewsTab.setOnSelectionChanged(e -> {
+            if (trustedReviewsTab.isSelected()) {
+                try {
+                    List<ReviewData> trustedReviews = studentDatabaseHelper.getTrustedReviews(currentUserId, -1);
+                    trustedReviewsListView.setItems(FXCollections.observableArrayList(trustedReviews));
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                    showError("Error loading trusted reviews: " + ex.getMessage());
+                }
+            }
+        });
+        
         // Add tabs to the activity TabPane
-        activityTabPane.getTabs().addAll(myQuestionsTab, myAnswersTab, reviewsOnMyAnswersTab);
+        activityTabPane.getTabs().addAll(myQuestionsTab, myAnswersTab, reviewsOnMyAnswersTab, trustedReviewsTab);
         VBox.setVgrow(activityTabPane, Priority.ALWAYS);
         
         // Add Request Reviewer Role button
