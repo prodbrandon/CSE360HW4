@@ -43,8 +43,7 @@ public class WelcomeLoginPage {
                     }
                     new StudentHomePage(studentDatabaseHelper).show(primaryStage);
                     break;
-                case "instructor":
-                case "instruction": // Add this to handle the typo in the database
+                case "instruction":
                     new InstructorHomePage(databaseHelper).show(primaryStage);
                     break;
                 case "staff":
