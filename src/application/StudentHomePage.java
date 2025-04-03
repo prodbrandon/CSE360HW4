@@ -16,6 +16,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
+import databasePart1.DatabaseHelper;
+
 /**
  * StudentHomePage provides the main interface for students to interact with the Q&A system.
  * It allows students to ask questions, view existing questions, search for questions,
@@ -24,6 +26,7 @@ import java.util.Optional;
 public class StudentHomePage {
     // Database helper for database operations
     private final studentDatabase studentDatabaseHelper;
+    private Stage primaryStage;
     
     // UI components
     private TabPane tabPane;
@@ -37,6 +40,7 @@ public class StudentHomePage {
     
     // Data structures
     private QuestionData selectedQuestion = null;
+    private AnswerData selectedAnswer = null;
     private ObservableList<QuestionData> questions = FXCollections.observableArrayList();
     private ObservableList<AnswerData> answers = FXCollections.observableArrayList();
     
@@ -56,6 +60,7 @@ public class StudentHomePage {
      * @param primaryStage The primary stage to display the home page
      */
     public void show(Stage primaryStage) {
+        this.primaryStage = primaryStage;
         // Create main layout with TabPane
         tabPane = new TabPane();
         
@@ -213,10 +218,6 @@ public class StudentHomePage {
      * Creates the answers section for the split pane
      * @return VBox containing the answers list and related controls
      */
-    /**
-     * Creates the answers section for the split pane
-     * @return VBox containing the answers list and related controls
-     */
     private VBox createAnswersSection() {
         VBox answersBox = new VBox(10);
         answersBox.setPadding(new Insets(10));
@@ -250,6 +251,7 @@ public class StudentHomePage {
         // Handle answer selection
         answerListView.getSelectionModel().selectedItemProperty().addListener(
             (obs, oldSelection, newSelection) -> {
+                selectedAnswer = newSelection;
                 if (newSelection != null) {
                     try {
                         // Load reviews for this answer
@@ -377,7 +379,6 @@ public class StudentHomePage {
         };
     }
     
-    
     /**
      * Shows an informational message to the user
      * @param message The info message to display
@@ -385,6 +386,34 @@ public class StudentHomePage {
     private void showInfo(String message) {
         statusLabel.setText(message);
         statusLabel.setTextFill(Color.BLUE);
+        statusLabel.setVisible(true);
+    }
+    
+    /**
+     * Shows an error message to the user
+     * @param message The error message to display
+     */
+    private void showError(String message) {
+        statusLabel.setText(message);
+        statusLabel.setTextFill(Color.RED);
+        statusLabel.setVisible(true);
+        
+        // Make alert for more serious errors
+        if (message.startsWith("Error")) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Error");
+            alert.setContentText(message);
+            alert.showAndWait();
+        }
+    }
+    
+    /**
+     * Shows a success message to the user
+     * @param message The success message to display
+     */
+    private void showSuccess(String message) {
+        statusLabel.setText(message);
+        statusLabel.setTextFill(Color.GREEN);
         statusLabel.setVisible(true);
     }
     
@@ -474,7 +503,23 @@ public class StudentHomePage {
         activityTabPane.getTabs().addAll(myQuestionsTab, myAnswersTab, reviewsOnMyAnswersTab);
         VBox.setVgrow(activityTabPane, Priority.ALWAYS);
         
-        myActivityLayout.getChildren().add(activityTabPane);
+        // Add Request Reviewer Role button
+        Button requestReviewerButton = new Button("Request to Become a Reviewer");
+        requestReviewerButton.setOnAction(e -> {
+            try {
+                // Get the database helper for the request page
+                DatabaseHelper dbHelper = new DatabaseHelper();
+                dbHelper.connectToDatabase();
+                
+                // Navigate to the request page with the current username
+                new RequestReviewerRolePage(dbHelper, "testuser").show(primaryStage);
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+                showError("Error opening reviewer request page: " + ex.getMessage());
+            }
+        });
+        
+        myActivityLayout.getChildren().addAll(activityTabPane, requestReviewerButton);
         
         return myActivityLayout;
     }
@@ -690,21 +735,39 @@ public class StudentHomePage {
                     break;
                 case "My Questions":
                     int userId = studentDatabaseHelper.getUserId("testuser");
-                    // This would need to be implemented in studentDatabase.java:
-                    // questions.setAll(studentDatabaseHelper.getQuestionsForUser(userId));
+                    List<QuestionData> myQuestions = studentDatabaseHelper.getQuestionsForUser(userId);
+                    questions.setAll(myQuestions);
                     break;
                 case "Resolved":
-                    // This would need to be implemented in studentDatabase.java:
-                    // questions.setAll(studentDatabaseHelper.getQuestionsByStatus(true));
+                    // Placeholder: Filter by resolved status
+                    List<QuestionData> allQuestions = studentDatabaseHelper.getQuestions();
+                    questions.setAll(allQuestions.stream()
+                        .filter(q -> q.resolved)
+                        .collect(java.util.stream.Collectors.toList()));
                     break;
                 case "Unresolved":
-                    // This would need to be implemented in studentDatabase.java:
-                    // questions.setAll(studentDatabaseHelper.getQuestionsByStatus(false));
+                    // Placeholder: Filter by unresolved status
+                    List<QuestionData> allUnresolvedQuestions = studentDatabaseHelper.getQuestions();
+                    questions.setAll(allUnresolvedQuestions.stream()
+                        .filter(q -> !q.resolved)
+                        .collect(java.util.stream.Collectors.toList()));
                     break;
             }
         } catch (SQLException e) {
             e.printStackTrace();
             showError("Error applying filter: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Loads all questions from the database
+     */
+    private void loadAllQuestions() {
+        try {
+            questions.setAll(studentDatabaseHelper.getQuestions());
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showError("Error loading questions: " + e.getMessage());
         }
     }
     
@@ -1051,45 +1114,4 @@ public class StudentHomePage {
             showError("Error updating clarification status: " + e.getMessage());
         }
     }
-    
-    /**
-     * Loads all questions from the database
-     */
-    private void loadAllQuestions() {
-        try {
-            questions.setAll(studentDatabaseHelper.getQuestions());
-        } catch (SQLException e) {
-            e.printStackTrace();
-            showError("Error loading questions: " + e.getMessage());
-        }
-    }
-    
-    /**
-     * Shows an error message to the user
-     * @param message The error message to display
-     */
-    private void showError(String message) {
-        statusLabel.setText(message);
-        statusLabel.setTextFill(Color.RED);
-        statusLabel.setVisible(true);
-        
-        // Make alert for more serious errors
-        if (message.startsWith("Error")) {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("Error");
-            alert.setContentText(message);
-            alert.showAndWait();
-        }
-    }
-    
-    /**
-     * Shows a success message to the user
-     * @param message The success message to display
-     */
-    private void showSuccess(String message) {
-        statusLabel.setText(message);
-        statusLabel.setTextFill(Color.GREEN);
-        statusLabel.setVisible(true);
-    }
-    
 }

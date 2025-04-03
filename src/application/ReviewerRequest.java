@@ -1,7 +1,10 @@
+// ReviewerRequest.java
 package application;
+
 import java.sql.Timestamp;
+
 public class ReviewerRequest {
-	private final int id;
+    private final int id;
     private final int userId;
     private final String userName;
     private final String justify;
@@ -24,22 +27,10 @@ public class ReviewerRequest {
     public int getId() { 
     	return id; 
     }
-    public int getUserId() { 
-    	return userId; 
-    }
-    public String getUserName() { 
-    	return userName; 
-    }
-    public String getJustify() { 
-    	return justify; 
-    }
-    public Timestamp getRequestDate() { 
-    	return requestDate; 
-    }
-    public String getStatus() { 
-    	return status; 
-    }
-    public String getInstructorComments() { 
-    	return instructorComments; 
-    }
+    public int getUserId() { return userId; }
+    public String getUserName() { return userName; }
+    public String getJustify() { return justify; }
+    public Timestamp getRequestDate() { return requestDate; }
+    public String getStatus() { return status; }
+    public String getInstructorComments() { return instructorComments; }
 }

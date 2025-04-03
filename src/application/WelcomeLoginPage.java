@@ -36,30 +36,38 @@ public class WelcomeLoginPage {
                     new AdminHomePage(databaseHelper, user.getUserName()).show(primaryStage);
                     break;
                 case "student":
-					try {
-						studentDatabaseHelper.connectToDatabase();
-					} catch (SQLException e) {
-						e.printStackTrace();
-					}
+                    try {
+                        studentDatabaseHelper.connectToDatabase();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
                     new StudentHomePage(studentDatabaseHelper).show(primaryStage);
                     break;
                 case "instructor":
+                case "instruction": // Add this to handle the typo in the database
                     new InstructorHomePage(databaseHelper).show(primaryStage);
                     break;
                 case "staff":
                     new StaffHomePage(databaseHelper).show(primaryStage);
                     break;
                 case "reviewer":
-                	try {
-    					studentDatabaseHelper.connectToDatabase();
-    				} catch (SQLException e) {
-    					e.printStackTrace();
-    				}
+                    try {
+                        studentDatabaseHelper.connectToDatabase();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
                     new ReviewerHomePage(studentDatabaseHelper, user).show(primaryStage);
+                    break;
+                default:
+                    // Handle unknown role
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Error");
+                    alert.setHeaderText("Invalid Role");
+                    alert.setContentText("Unknown role: " + role);
+                    alert.showAndWait();
                     break;
             }
         });
-        
         Button quitButton = new Button("Quit");
         quitButton.setOnAction(a -> {
             databaseHelper.closeConnection();

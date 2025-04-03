@@ -5,14 +5,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+// Importing the User class from application package
 import application.User;
+import application.ReviewerRequest;
 
 /**
  * The DatabaseHelper class manages database operations including user authentication,
- * role management, and invitation code handling.
+ * role management, invitation code handling, and reviewer request management.
  */
 public class DatabaseHelper {
-    // JDBC driver name and database URL 
     static final String JDBC_DRIVER = "org.h2.Driver";   
     static final String DB_URL = "jdbc:h2:~/FoundationDatabase";  
 
@@ -29,11 +30,11 @@ public class DatabaseHelper {
             System.out.println("Connecting to database...");
             connection = DriverManager.getConnection(DB_URL, USER, PASS);
             statement = connection.createStatement();
-            // To reset database, uncomment next line:
-            //statement.execute("DROP ALL OBJECTS");
             createTables();
+            System.out.println("Database connection and setup complete");
         } catch (ClassNotFoundException e) {
             System.err.println("JDBC Driver not found: " + e.getMessage());
+            throw new SQLException("JDBC Driver not found", e);
         }
     }
 
@@ -43,7 +44,7 @@ public class DatabaseHelper {
                 + "id INT AUTO_INCREMENT PRIMARY KEY, "
                 + "userName VARCHAR(255) UNIQUE, "
                 + "password VARCHAR(255), "
-                + "role VARCHAR(255))";  // Changed from VARCHAR(20) to VARCHAR(255)
+                + "role VARCHAR(255))";
         statement.execute(userTable);
         
         // Invitation codes table
@@ -58,17 +59,30 @@ public class DatabaseHelper {
                 + "oneTimePassword VARCHAR(10) PRIMARY KEY, "
                 + "isUsed BOOLEAN DEFAULT FALSE)";
         statement.execute(oneTimePasswordsTable);
+
+        // Reviewer requests table
+        String reviewerRequestsTable = "CREATE TABLE IF NOT EXISTS reviewer_requests ("
+                + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                + "userId INT NOT NULL, "
+                + "justification TEXT NOT NULL, "
+                + "requestDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                + "status VARCHAR(20) DEFAULT 'PENDING', "
+                + "instructorComments TEXT, "
+                + "FOREIGN KEY (userId) REFERENCES cse360users(id))";
+        statement.execute(reviewerRequestsTable);
+    }
+
+    public Connection getConnection() {
+        return this.connection;
     }
 
     public boolean isDatabaseEmpty() throws SQLException {
         String query = "SELECT COUNT(*) AS count FROM cse360users";
         ResultSet resultSet = statement.executeQuery(query);
-        if (resultSet.next()) {
-            return resultSet.getInt("count") == 0;
-        }
-        return true;
+        return resultSet.next() && resultSet.getInt("count") == 0;
     }
 
+    // ========== USER MANAGEMENT METHODS ==========
     public void register(User user) throws SQLException {
         String insertUser = "INSERT INTO cse360users (userName, password, role) VALUES (?, ?, ?)";
         try (PreparedStatement pstmt = connection.prepareStatement(insertUser)) {
@@ -76,56 +90,21 @@ public class DatabaseHelper {
             pstmt.setString(2, user.getPassword());
             pstmt.setString(3, user.getRole());
             pstmt.executeUpdate();
-            printAllUsers();
         }
-    }
-    
-    // Delete a user from the database
-    public void deleteUser(String userName) {
-    	String query = "DELETE FROM cse360users WHERE userName = ?";
-    	try(PreparedStatement pstmt = connection.prepareStatement(query)) {
-    		pstmt.setString(1,  userName);;
-    		int rows = pstmt.executeUpdate();
-    		if(rows > 0) {
-    			System.out.println("User " + userName + "has been deleted.");
-    		}
-    		else {
-    			System.out.println("No user found with username: " + userName);
-    		}
-    	}
-    	catch (SQLException e) {
-    		System.err.println("Problem deleting the user " + userName + ": " + e.getMessage());
-    		e.printStackTrace();
-    	}
     }
 
     public boolean login(User user) throws SQLException {
-        String query = "SELECT * FROM cse360users WHERE userName = ? AND password = ? AND role = ?";
+        String query = "SELECT * FROM cse360users WHERE userName = ? AND password = ?";
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
             pstmt.setString(1, user.getUserName());
             pstmt.setString(2, user.getPassword());
-            pstmt.setString(3, user.getRole());
             try (ResultSet rs = pstmt.executeQuery()) {
                 return rs.next();
             }
         }
     }
 
-    public boolean doesUserExist(String userName) {
-        String query = "SELECT COUNT(*) FROM cse360users WHERE userName = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-            pstmt.setString(1, userName);
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt(1) > 0;
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    public String getUserRole(String userName) {
+    public String getUserRole(String userName) throws SQLException {
         String query = "SELECT role FROM cse360users WHERE userName = ?";
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
             pstmt.setString(1, userName);
@@ -133,220 +112,291 @@ public class DatabaseHelper {
             if (rs.next()) {
                 return rs.getString("role");
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
         return null;
     }
 
-    public String generateInvitationCode() {
-        String code = UUID.randomUUID().toString().substring(0, 4);
-        String query = "INSERT INTO InvitationCodes (code) VALUES (?)";
-        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-            pstmt.setString(1, code);
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return null;
-        }
-        return code;
-    }
-
-    public boolean validateInvitationCode(String code) {
-        String query = "SELECT * FROM InvitationCodes WHERE code = ? AND isUsed = FALSE";
-        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-            pstmt.setString(1, code);
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                markInvitationCodeAsUsed(code);
-                return true;
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    private void markInvitationCodeAsUsed(String code) {
-        String query = "UPDATE InvitationCodes SET isUsed = TRUE WHERE code = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-            pstmt.setString(1, code);
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    
-    // Generate a one-time password for a certain username only if it does not already have one
-    public String generateOTP(String userName) {
-        String query = "SELECT oneTimePassword FROM OneTimePasswords WHERE userName = ?";
+    public int getUserId(String userName) throws SQLException {
+        String query = "SELECT id FROM cse360users WHERE userName = ?";
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
             pstmt.setString(1, userName);
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
-                return "";
+                return rs.getInt("id");
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return "";
         }
+        return -1;
+    }
 
-        String onetimePassword = UUID.randomUUID().toString().substring(0, 10);
-        query = "INSERT INTO OneTimePasswords (userName, oneTimePassword) VALUES (?, ?)";
+    // ========== REVIEWER REQUEST METHODS ==========
+    public void submitReviewerRequest(int userId, String justification) throws SQLException {
+        String query = "INSERT INTO reviewer_requests (userId, justification) VALUES (?, ?)";
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-            pstmt.setString(1, userName);
-            pstmt.setString(2, onetimePassword);
+            pstmt.setInt(1, userId);
+            pstmt.setString(2, justification);
             pstmt.executeUpdate();
-            return onetimePassword;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return "";
         }
     }
 
-    // Ensure a one-time password exists and is associated with the given username
-    public boolean validateOTP(String userName, String oneTimePassword) {
-        String query = "SELECT * FROM OneTimePasswords WHERE userName = ? AND oneTimePassword = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-            pstmt.setString(1, userName);
-            pstmt.setString(2, oneTimePassword);
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                markOTPAsUsed(oneTimePassword);
-                return true;
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    // Remove a used one-time password
-    private void markOTPAsUsed(String oneTimePassword) {
-        String query = "DELETE FROM OneTimePasswords WHERE oneTimePassword = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-            pstmt.setString(1, oneTimePassword);
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    // Determine if there is only one admin left or not 
-    public boolean isLastAdmin(String userName) {
-        String query = "SELECT COUNT(*) FROM cse360users WHERE role LIKE '%admin%'";
-        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                int adminCount = rs.getInt(1);
-                return adminCount == 1 && getUserRole(userName).contains("admin");
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    // Update the roles for a user
-    public void updateUserRoles(String userName, List<String> roles, String currentUserName) {
-        // Check if this user is the last admin
-        boolean isLastAdmin = isLastAdmin(userName);
+    public List<ReviewerRequest> getPendingReviewerRequests() throws SQLException {
+        List<ReviewerRequest> requests = new ArrayList<>();
+        String query = "SELECT r.*, u.userName FROM reviewer_requests r "
+                + "JOIN cse360users u ON r.userId = u.id "
+                + "WHERE r.status = 'PENDING' "
+                + "ORDER BY r.requestDate DESC";
         
-        // If this is the last admin and we're trying to remove admin role
-        if (isLastAdmin && !roles.contains("admin")) {
-            System.out.println("Cannot remove admin role from the last admin user");
-            return;
-        }
-        
-        // If user is trying to modify their own roles
-        if (userName.equals(currentUserName)) {
-            // If they're an admin and trying to remove their admin role
-            if (getUserRole(userName).contains("admin") && !roles.contains("admin")) {
-                System.out.println("Cannot remove your own admin role");
-                return;
-            }
-        }
-
-        String roleString = String.join(",", roles);
-        String query = "UPDATE cse360users SET role = ? WHERE userName = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-            pstmt.setString(1, roleString);
-            pstmt.setString(2, userName);
-            int rowsAffected = pstmt.executeUpdate();
-            if (rowsAffected > 0) {
-                System.out.println("Roles updated successfully for user: " + userName);
-                printAllUsers();
-            } else {
-                System.out.println("No user found with username: " + userName);
-            }
-        } catch (SQLException e) {
-            System.err.println("Error updating roles for user " + userName + ": " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    // Update the password for a user
-    public void updatePassword(String userName, String password) {
-        String query = "UPDATE cse360users SET password = ? WHERE userName = ?";
-        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
-            pstmt.setString(1, password);
-            pstmt.setString(2, userName);
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    // Return user objects of all the users in the database
-    public List<User> getUsers() {
-        String query = "SELECT userName, password, role FROM cse360users";
-        List<User> users = new ArrayList<>();
         try (PreparedStatement pstmt = connection.prepareStatement(query)) {
             ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
-                String userName = rs.getString("userName");
-                String password = rs.getString("password");
-                String role = rs.getString("role");
-                users.add(new User(userName, password, role));
+                requests.add(new ReviewerRequest(
+                    rs.getInt("id"),
+                    rs.getInt("userId"),
+                    rs.getString("userName"),
+                    rs.getString("justification"),
+                    rs.getTimestamp("requestDate"),
+                    rs.getString("status"),
+                    rs.getString("instructorComments")
+                ));
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
+        }
+        return requests;
+    }
+
+    public void updateReviewerRequestStatus(int requestId, String status, String comments) throws SQLException {
+        String query = "UPDATE reviewer_requests SET status = ?, instructorComments = ? WHERE id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setString(1, status);
+            pstmt.setString(2, comments);
+            pstmt.setInt(3, requestId);
+            pstmt.executeUpdate();
+        }
+    }
+
+    public void addUserRole(int userId, String newRole) throws SQLException {
+        String currentRoles = getUserRoleById(userId);
+        if (currentRoles == null || !currentRoles.contains(newRole)) {
+            String updatedRoles = currentRoles == null ? newRole : currentRoles + "," + newRole;
+            String query = "UPDATE cse360users SET role = ? WHERE id = ?";
+            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+                pstmt.setString(1, updatedRoles);
+                pstmt.setInt(2, userId);
+                pstmt.executeUpdate();
+            }
+        }
+    }
+
+    private String getUserRoleById(int userId) throws SQLException {
+        String query = "SELECT role FROM cse360users WHERE id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getString("role");
+            }
+        }
+        return null;
+    }
+
+    // ========== OTHER DATABASE OPERATIONS ==========
+    public List<User> getUsers() throws SQLException {
+        List<User> users = new ArrayList<>();
+        String query = "SELECT userName, password, role FROM cse360users";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                users.add(new User(
+                    rs.getString("userName"),
+                    rs.getString("password"),
+                    rs.getString("role")
+                ));
+            }
         }
         return users;
     }
 
-    public void printAllUsers() {
-        String selectAllUsers = "SELECT * FROM cse360users";
-        try (PreparedStatement selectStmt = connection.prepareStatement(selectAllUsers)) {
-            ResultSet rs = selectStmt.executeQuery();
-            System.out.println("\n=== Current Database Contents ===");
-            System.out.println("Username\t\tRole\t\tPassword");
-            System.out.println("----------------------------------------");
-            while (rs.next()) {
-                System.out.printf("%-20s%-15s%s%n",
-                    rs.getString("userName"),
-                    rs.getString("role"),
-                    rs.getString("password")
-                );
+    public void closeConnection() {
+        try {
+            if (statement != null) statement.close();
+            if (connection != null) connection.close();
+            System.out.println("Database connection closed");
+        } catch (SQLException se) {
+            se.printStackTrace();
+        }
+    }
+    
+    // Additional methods for functionality (invitation codes, OTP, etc.)
+    public String generateInvitationCode() {
+        // Generate a random 6-character alphanumeric code
+        String code = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        
+        try {
+            String query = "INSERT INTO InvitationCodes (code, isUsed) VALUES (?, FALSE)";
+            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+                pstmt.setString(1, code);
+                pstmt.executeUpdate();
             }
-            System.out.println("----------------------------------------\n");
+            return code;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+    
+    public boolean validateInvitationCode(String code) {
+        try {
+            String query = "SELECT * FROM InvitationCodes WHERE code = ? AND isUsed = FALSE";
+            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+                pstmt.setString(1, code);
+                ResultSet rs = pstmt.executeQuery();
+                if (rs.next()) {
+                    // Mark the code as used
+                    String updateQuery = "UPDATE InvitationCodes SET isUsed = TRUE WHERE code = ?";
+                    try (PreparedStatement updatePstmt = connection.prepareStatement(updateQuery)) {
+                        updatePstmt.setString(1, code);
+                        updatePstmt.executeUpdate();
+                    }
+                    return true;
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+    
+    public String generateOTP(String userName) {
+        try {
+            // Check if user already has an OTP
+            String checkQuery = "SELECT * FROM OneTimePasswords WHERE userName = ?";
+            try (PreparedStatement pstmt = connection.prepareStatement(checkQuery)) {
+                pstmt.setString(1, userName);
+                ResultSet rs = pstmt.executeQuery();
+                if (rs.next()) {
+                    return ""; // User already has an OTP
+                }
+            }
+            
+            // Generate a random 6-character OTP
+            String otp = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+            
+            String insertQuery = "INSERT INTO OneTimePasswords (userName, oneTimePassword, isUsed) VALUES (?, ?, FALSE)";
+            try (PreparedStatement pstmt = connection.prepareStatement(insertQuery)) {
+                pstmt.setString(1, userName);
+                pstmt.setString(2, otp);
+                pstmt.executeUpdate();
+            }
+            return otp;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+    
+    public boolean validateOTP(String userName, String otp) {
+        try {
+            String query = "SELECT * FROM OneTimePasswords WHERE userName = ? AND oneTimePassword = ? AND isUsed = FALSE";
+            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+                pstmt.setString(1, userName);
+                pstmt.setString(2, otp);
+                ResultSet rs = pstmt.executeQuery();
+                if (rs.next()) {
+                    // Mark the OTP as used
+                    String updateQuery = "UPDATE OneTimePasswords SET isUsed = TRUE WHERE oneTimePassword = ?";
+                    try (PreparedStatement updatePstmt = connection.prepareStatement(updateQuery)) {
+                        updatePstmt.setString(1, otp);
+                        updatePstmt.executeUpdate();
+                    }
+                    return true;
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+    
+    public void updatePassword(String userName, String newPassword) {
+        try {
+            String query = "UPDATE cse360users SET password = ? WHERE userName = ?";
+            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+                pstmt.setString(1, newPassword);
+                pstmt.setString(2, userName);
+                pstmt.executeUpdate();
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
     
-
-    public void closeConnection() {
+    public boolean doesUserExist(String userName) {
         try {
-            if (statement != null) statement.close();
-        } catch(SQLException se2) {
-            se2.printStackTrace();
+            String query = "SELECT * FROM cse360users WHERE userName = ?";
+            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+                pstmt.setString(1, userName);
+                ResultSet rs = pstmt.executeQuery();
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
         }
+    }
+    
+    public boolean isLastAdmin(String userName) {
         try {
-            if (connection != null) connection.close();
-        } catch(SQLException se) {
-            se.printStackTrace();
+            String query = "SELECT COUNT(*) AS adminCount FROM cse360users WHERE role LIKE '%admin%'";
+            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+                ResultSet rs = pstmt.executeQuery();
+                if (rs.next() && rs.getInt("adminCount") <= 1) {
+                    // Check if this user is an admin
+                    String userRoleQuery = "SELECT role FROM cse360users WHERE userName = ?";
+                    try (PreparedStatement userPstmt = connection.prepareStatement(userRoleQuery)) {
+                        userPstmt.setString(1, userName);
+                        ResultSet userRs = userPstmt.executeQuery();
+                        if (userRs.next()) {
+                            String role = userRs.getString("role");
+                            return role != null && role.contains("admin");
+                        }
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+    
+    public void deleteUser(String userName) {
+        try {
+            String query = "DELETE FROM cse360users WHERE userName = ?";
+            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+                pstmt.setString(1, userName);
+                pstmt.executeUpdate();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public void updateUserRoles(String userName, ArrayList<String> roles, String currentUserName) {
+        try {
+            // Combine roles into a comma-separated string
+            StringBuilder roleString = new StringBuilder();
+            for (int i = 0; i < roles.size(); i++) {
+                roleString.append(roles.get(i));
+                if (i < roles.size() - 1) {
+                    roleString.append(",");
+                }
+            }
+            
+            String query = "UPDATE cse360users SET role = ? WHERE userName = ?";
+            try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+                pstmt.setString(1, roleString.toString());
+                pstmt.setString(2, userName);
+                pstmt.executeUpdate();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 }

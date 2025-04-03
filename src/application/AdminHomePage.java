@@ -1,5 +1,7 @@
 package application;
 
+import java.sql.SQLException;
+
 import databasePart1.DatabaseHelper;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -33,7 +35,12 @@ public class AdminHomePage {
         // Button to see the list view of users
         Button viewUserListButton = new Button("View User List");
         viewUserListButton.setOnAction(a -> {
-            new ViewUserListPage().show(databaseHelper, primaryStage, adminUserName);
+            try {
+				new ViewUserListPage().show(databaseHelper, primaryStage, adminUserName);
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
         });
 
         layout.getChildren().addAll(adminLabel, quitButton, viewUserListButton);

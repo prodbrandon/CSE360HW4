@@ -8,6 +8,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.ArrayList;
 
@@ -16,8 +17,8 @@ public class ViewUserListPage {
     private Label errorLabel;
     private String currentUserName; // To track the logged-in admin's username
     
-    public void show(DatabaseHelper databaseHelper, Stage primaryStage, String adminUserName) {
-    	// Update the username of the currently logged in user
+    public void show(DatabaseHelper databaseHelper, Stage primaryStage, String adminUserName) throws SQLException {
+        // Update the username of the currently logged in user
         this.currentUserName = adminUserName;
         
         VBox layout = new VBox(10);
@@ -31,7 +32,13 @@ public class ViewUserListPage {
         errorLabel.setStyle("-fx-text-fill: red; -fx-font-size: 12px;");
 
         // List to hold all the users from the database
-        List<User> users = databaseHelper.getUsers();
+        List<User> users;
+        try {
+            users = databaseHelper.getUsers();
+        } catch (SQLException ex) {
+            errorLabel.setText("Error loading users: " + ex.getMessage());
+            users = new ArrayList<>();
+        }
         ObservableList<User> observableUsers = FXCollections.observableArrayList(users);
         
         // Display all the users from the database in the list view
@@ -55,54 +62,61 @@ public class ViewUserListPage {
         // Button to delete the currently selected user
         Button deleteUser = new Button("Delete User");
         deleteUser.setOnAction(e -> {
-        	User selectedUser = userListView.getSelectionModel().getSelectedItem();
-        	
-        	// Prevent deleting other admins
-        	if(selectedUser != null && selectedUser.getRole().toLowerCase().contains("admin")) {
-        		deleteUser.setDisable(true);
-        		errorLabel.setText("Can't delete other admins");
-        		return;
-        	}
-        	
-        	// Prevent deleting when there is no user selected
-        	if(selectedUserName == null || selectedUserName.isEmpty()) {
-        		errorLabel.setText("Choose a user first");
-        		return;
-        	}
-        	
-        	// Prevent deleting the currently logged in account
-        	if(selectedUserName.equals(currentUserName)) {
-        		errorLabel.setText("Can't delete your own account.");
-        		return;
-        	}
-        	
-        	// Prevent deleting an admin when there is only one left
-        	if(databaseHelper.isLastAdmin(selectedUserName)) {
-        		errorLabel.setText("Can't delete the last admin.");
-        		return;
-        	}
-        	
-        	// Require a confirmation to delete a user
-        	TextInputDialog confirmation = new TextInputDialog();
-        	confirmation.setTitle("Confirm this deletion");
-        	confirmation.setHeaderText("Are you sure you want to delete " + selectedUserName + "?");
-        	confirmation.setContentText("Put in 'Yes' to do so:");
-        	confirmation.showAndWait().ifPresent(response -> {
-        		if(response.equals("Yes")) {
-        			databaseHelper.deleteUser(selectedUserName);
-        			userListView.setItems(FXCollections.observableArrayList(databaseHelper.getUsers()));
-        			errorLabel.setStyle("-fx-text-fill: green;");
-        			errorLabel.setText("User has been deleted");
-        			selectedUserLabel.setText("Selected User: None");
-        			selectedUserName = null;
-        		}
-        		else {
-        			errorLabel.setText("Deleting user did not work");
-        		}
-        	});
+            User selectedUser = userListView.getSelectionModel().getSelectedItem();
+            
+            // Prevent deleting other admins
+            if(selectedUser != null && selectedUser.getRole().toLowerCase().contains("admin")) {
+                deleteUser.setDisable(true);
+                errorLabel.setText("Can't delete other admins");
+                return;
+            }
+            
+            // Prevent deleting when there is no user selected
+            if(selectedUserName == null || selectedUserName.isEmpty()) {
+                errorLabel.setText("Choose a user first");
+                return;
+            }
+            
+            // Prevent deleting the currently logged in account
+            if(selectedUserName.equals(currentUserName)) {
+                errorLabel.setText("Can't delete your own account.");
+                return;
+            }
+            
+            // Prevent deleting an admin when there is only one left
+            boolean isLastAdmin = false;
+            isLastAdmin = databaseHelper.isLastAdmin(selectedUserName);
+            
+            if (isLastAdmin) {
+                errorLabel.setText("Can't delete the last admin.");
+                return;
+            }
+            
+            // Require a confirmation to delete a user
+            TextInputDialog confirmation = new TextInputDialog();
+            confirmation.setTitle("Confirm this deletion");
+            confirmation.setHeaderText("Are you sure you want to delete " + selectedUserName + "?");
+            confirmation.setContentText("Put in 'Yes' to do so:");
+            confirmation.showAndWait().ifPresent(response -> {
+                if(response.equals("Yes")) {
+                    databaseHelper.deleteUser(selectedUserName);
+					try {
+					    userListView.setItems(FXCollections.observableArrayList(databaseHelper.getUsers()));
+					} catch (SQLException ex) {
+					    errorLabel.setText("Error refreshing user list: " + ex.getMessage());
+					    return;
+					}
+					errorLabel.setStyle("-fx-text-fill: green;");
+					errorLabel.setText("User has been deleted");
+					selectedUserLabel.setText("Selected User: None");
+					selectedUserName = null;
+                } else {
+                    errorLabel.setText("Deleting user did not work");
+                }
+            });
         });
         
-        // Checkboxes to display and edit  roles
+        // Checkboxes to display and edit roles
         CheckBox adminCheckBox = new CheckBox("Admin");
         CheckBox studentCheckBox = new CheckBox("Student");
         CheckBox reviewerCheckBox = new CheckBox("Reviewer");
@@ -116,8 +130,8 @@ public class ViewUserListPage {
         
         userListView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
-            	
-            	// Update the selected user and the display 
+                
+                // Update the selected user and the display 
                 selectedUserName = newSelection.getUserName();
                 selectedUserLabel.setText("Selected User: " + selectedUserName);
                 errorLabel.setText("");
@@ -140,7 +154,7 @@ public class ViewUserListPage {
                     for (String role : roleArray) {
                         switch (role.trim().toLowerCase()) {
                             case "admin":
-                            	// Prevent being able to change the admin role of an admin
+                                // Prevent being able to change the admin role of an admin
                                 adminCheckBox.setSelected(true);
                                 adminCheckBox.setDisable(true);
                                 break;
@@ -167,12 +181,11 @@ public class ViewUserListPage {
             }
         });
         
-        
         // Button to change the selected user's roles
         Button changeRolesButton = new Button("Change Roles");
         changeRolesButton.setOnAction(e -> {
-        	
-        	// Prevent changing roles when no user selected
+            
+            // Prevent changing roles when no user selected
             if (selectedUserName == null || selectedUserName.isEmpty()) {
                 errorLabel.setText("Please select a user first");
                 return;
@@ -194,20 +207,27 @@ public class ViewUserListPage {
             }
             
             // Check if trying to remove admin role from last admin
-            if (databaseHelper.isLastAdmin(selectedUserName) && !newRoles.contains("admin")) {
+            boolean isLastAdmin = false;
+            isLastAdmin = databaseHelper.isLastAdmin(selectedUserName);
+            
+            if (isLastAdmin && !newRoles.contains("admin")) {
                 errorLabel.setText("Cannot remove admin role from the last admin user");
                 return;
             }
             
             // Update the roles in the database 
-            databaseHelper.updateUserRoles(selectedUserName, newRoles, currentUserName);
-            
-            // Update the list view with the changes made to roles
-            List<User> updatedUsers = databaseHelper.getUsers();
-            userListView.setItems(FXCollections.observableArrayList(updatedUsers));
-            
-            errorLabel.setStyle("-fx-text-fill: green;");
-            errorLabel.setText("Roles updated successfully");
+            try {
+                databaseHelper.updateUserRoles(selectedUserName, newRoles, currentUserName);
+                
+                // Update the list view with the changes made to roles
+                List<User> updatedUsers = databaseHelper.getUsers();
+                userListView.setItems(FXCollections.observableArrayList(updatedUsers));
+                
+                errorLabel.setStyle("-fx-text-fill: green;");
+                errorLabel.setText("Roles updated successfully");
+            } catch (SQLException ex) {
+                errorLabel.setText("Error updating roles: " + ex.getMessage());
+            }
         });
         
         // Label to display the one-time password
@@ -217,8 +237,8 @@ public class ViewUserListPage {
         // Button to generate a one-time password for a selected user
         Button oneTimePasswordButton = new Button("Generate OTP");
         oneTimePasswordButton.setOnAction(e -> {
-        	
-        	// Make sure a user is selected
+            
+            // Make sure a user is selected
             if (selectedUserName == null || selectedUserName.isEmpty()) {
                 errorLabel.setText("Please select a user first");
                 return;
@@ -232,7 +252,6 @@ public class ViewUserListPage {
                 oneTimePasswordLabel.setText("One-time password: " + oneTimePassword);
             }
         });
-        
         
         // Button to let the user logout
         Button quitButton = new Button("Logout");
