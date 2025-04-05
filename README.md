@@ -26,23 +26,23 @@ The following are all files and directories that comprise this repo:
 
 1. **ReviewTesting.java**
     - **Description:** File containing the Review tests.
-    - **Access:** [View ReviewTesting.java](https://github.com/sapai5/CSE360group/tree/main/src/ReviewTesting.java)
+    - **Access:** [View ReviewTesting.java](https://github.com/sapai5/CSE360group/tree/main/src/application/ReviewTesting.java)
 
 2. **ReviewerRequestSystem.java**
     - **Description:** File containing the Reviewer Request System tests.
-    - **Access:** [View ReviewerRequestSystem.java](https://github.com/sapai5/CSE360group/tree/main/src/ReviewerRequestSystem.java)
+    - **Access:** [View ReviewerRequestSystem.java](https://github.com/sapai5/CSE360group/tree/main/src/application/ReviewerRequestSystem.java)
 
 3. **ReviewMessageTest.java**
     - **Description:** File containing the Review Messaging tests.
-    - **Access:** [View ReviewMessageTest.java](https://github.com/sapai5/CSE360group/tree/main/src/ReviewMessageTest.java)
+    - **Access:** [View ReviewMessageTest.java](https://github.com/sapai5/CSE360group/tree/main/src/application/ReviewMessageTest.java)
 
 4. **JunitTest.java**
     - **Description:** File containing the Trusted Reviewer tests.
-    - **Access:** [View JunitTest.java](https://github.com/sapai5/CSE360group/tree/main/src/JunitTest.java)
+    - **Access:** [View JunitTest.java](https://github.com/sapai5/CSE360group/tree/main/src/application/JunitTest.java)
 
 5. **StudentReviewTest.java**
     - **Description:** File containing the Student Viewing Review tests.
-    - **Access:** [View StudentReviewTest.java](https://github.com/sapai5/CSE360group/tree/main/src/StudentReviewTest.java)
+    - **Access:** [View StudentReviewTest.java](https://github.com/sapai5/CSE360group/tree/main/src/application/StudentReviewTest.java)
   
 ### Video Directories
 
