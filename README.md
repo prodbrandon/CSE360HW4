@@ -28,13 +28,13 @@ The following are all files and directories that comprise this repo:
     - **Description:** File containing the Review tests.
     - **Access:** [View ReviewTesting.java](https://github.com/sapai5/CSE360group/tree/main/src/application/ReviewTesting.java)
 
-2. **ReviewerRequestSystem.java**
+2. **ReviewerSystemTests.java**
     - **Description:** File containing the Reviewer Request System tests.
-    - **Access:** [View ReviewerRequestSystem.java](https://github.com/sapai5/CSE360group/tree/main/src/application/ReviewerRequestSystem.java)
+    - **Access:** [View ReviewerRequestSystem.java](https://github.com/sapai5/CSE360group/tree/main/src/application/ReviewerSystemTests.java)
 
-3. **ReviewMessageTest.java**
+3. **ReviewerMessageTest.java**
     - **Description:** File containing the Review Messaging tests.
-    - **Access:** [View ReviewMessageTest.java](https://github.com/sapai5/CSE360group/tree/main/src/application/ReviewMessageTest.java)
+    - **Access:** [View ReviewMessageTest.java](https://github.com/sapai5/CSE360group/tree/main/src/application/ReviewerMessageTest.java)
 
 4. **JunitTest.java**
     - **Description:** File containing the Trusted Reviewer tests.
