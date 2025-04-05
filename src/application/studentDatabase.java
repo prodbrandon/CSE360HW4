@@ -713,14 +713,27 @@ public class studentDatabase {
     
 
     // Reviewer Management Methods
-    
-    public void addReviewer(int userId, double weight) throws SQLException {
+    public int addReviewer(int userId, double weight) throws SQLException {
         String query = "INSERT INTO reviewers (userId, weight) VALUES (?, ?)";
-        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+        try (PreparedStatement pstmt = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setInt(1, userId);
             pstmt.setDouble(2, weight);
             pstmt.executeUpdate();
+            
+            ResultSet rs = pstmt.getGeneratedKeys();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
         }
+        return -1;
+    }
+    
+    public boolean deleteReviewer(int userId) throws SQLException {
+    	String query = "DELETE FROM reviewers WHERE userId = ?";
+    	try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+    		pstmt.setInt(1, userId);
+    		return pstmt.executeUpdate() > 0;
+    	}
     }
 
     public List<ReviewerRecord> getReviewersForUser(int userId) throws SQLException {

@@ -1,90 +1,58 @@
-# CSE360 Wednesday 21
+# CSE360 Wednesday 21 TP3 Submission
 
 ## Repository Contents
 
 The following are all files and directories that comprise this repo:
 
-### Files
-
-1. **.classpath**
-   - **Description:** Eclipse project classpath file.
-   - **Access:** [View .classpath](https://github.com/sapai5/CSE360group/blob/main/.classpath)
-
-2. **.project**
-   - **Description:** Eclipse project description file.
-   - **Access:** [View .project](https://github.com/sapai5/CSE360group/blob/main/.project)
-
-3. **.DS_Store**
-   - **Description:** macOS Finder metadata file.
-   - **Access:** [View .DS_Store](https://github.com/sapai5/CSE360group/blob/main/.DS_Store)
-
-4. **.settings/org.eclipse.core.resources.prefs**
-   - **Description:** Eclipse core resources preferences.
-   - **Access:** [View org.eclipse.core.resources.prefs](https://github.com/sapai5/CSE360group/blob/main/.settings/org.eclipse.core.resources.prefs)
-
-5. **.settings/org.eclipse.jdt.core.prefs**
-   - **Description:** Eclipse JDT core preferences.
-   - **Access:** [View org.eclipse.jdt.core.prefs](https://github.com/sapai5/CSE360group/blob/main/.settings/org.eclipse.jdt.core.prefs)
-
-6. **bin/.gitignore**
-   - **Description:** Gitignore file for the bin directory.
-   - **Access:** [View .gitignore](https://github.com/sapai5/CSE360group/blob/main/bin/.gitignore)
-
-7. **bin/application/AdminHomePage.class**
-   - **Description:** Compiled Java class file for Admin Home Page.
-   - **Access:** [View AdminHomePage.class](https://github.com/sapai5/CSE360group/blob/main/bin/application/AdminHomePage.class)
-
 ### Directories
 
-1. **.settings**
-   - **Description:** Directory containing Eclipse settings.
-   - **Access:** [View .settings](https://github.com/sapai5/CSE360group/tree/main/.settings)
+1. **src/application**
+   - **Description:** Directory containing the source files of the application folder.
+   - **Access:** [View src/application](https://github.com/sapai5/CSE360group/tree/main/src/application)
 
-2. **bin**
-   - **Description:** Directory containing compiled classes and other binaries.
-   - **Access:** [View bin](https://github.com/sapai5/CSE360group/tree/main/bin)
+2. **src/databasePart1**
+   - **Description:** Directory containing the original database helper.
+   - **Access:** [View src/databasePart1](https://github.com/sapai5/CSE360group/tree/main/src/databasePart1)
 
-3. **bin/application**
-   - **Description:** Directory containing application-related compiled classes.
-   - **Access:** [View bin/application](https://github.com/sapai5/CSE360group/tree/main/bin/application)
+3. **doc/application**
+    - **Description:** Directory containing the HTML Javadoc output for the application Java files.
+    - **Access:** [View doc/application](https://github.com/sapai5/CSE360group/tree/main/doc/application)
 
-4. **bin/databasePart1**
-   - **Description:** Directory containing database part 1 compiled classes.
-   - **Access:** [View bin/databasePart1](https://github.com/sapai5/CSE360group/tree/main/bin/databasePart1)
+4. **Design Documents**
+    - **Description:** Directory containing the UML diagrams for the additional code for this submission. Uploaded to Google Drive to keep the GitHub repository clean.
+    - **Access:** [View design documents](https://drive.google.com/drive/folders/1WiizMi6TwIaJRi6o_yKokCfHbwrErDBK?usp=sharing) 
 
-5. **bin/passwordEvaluationTestbed**
-   - **Description:** Directory containing password evaluation testbed compiled classes.
-   - **Access:** [View bin/passwordEvaluationTestbed](https://github.com/sapai5/CSE360group/tree/main/bin/passwordEvaluationTestbed)
+### Automated Testing Files
 
-6. **bin/src**
-   - **Description:** Directory containing source files.
-   - **Access:** [View bin/src](https://github.com/sapai5/CSE360group/tree/main/bin/src)
+1. **ReviewTesting.java**
+    - **Description:** File containing the Review tests.
+    - **Access:** [View ReviewTesting.java](https://github.com/sapai5/CSE360group/tree/main/src/ReviewTesting.java)
 
-7. **bin/userNameRecognizerTestbed**
-   - **Description:** Directory containing username recognizer testbed compiled classes.
-   - **Access:** [View bin/userNameRecognizerTestbed](https://github.com/sapai5/CSE360group/tree/main/bin/userNameRecognizerTestbed)
+2. **ReviewerRequestSystem.java**
+    - **Description:** File containing the Reviewer Request System tests.
+    - **Access:** [View ReviewerRequestSystem.java](https://github.com/sapai5/CSE360group/tree/main/src/ReviewerRequestSystem.java)
+
+3. **ReviewMessageTest.java**
+    - **Description:** File containing the Review Messaging tests.
+    - **Access:** [View ReviewMessageTest.java](https://github.com/sapai5/CSE360group/tree/main/src/ReviewMessageTest.java)
+
+4. **JunitTest.java**
+    - **Description:** File containing the Trusted Reviewer tests.
+    - **Access:** [View JunitTest.java](https://github.com/sapai5/CSE360group/tree/main/src/JunitTest.java)
+
+5. **StudentReviewTest.java**
+    - **Description:** File containing the Student Viewing Review tests.
+    - **Access:** [View StudentReviewTest.java](https://github.com/sapai5/CSE360group/tree/main/src/StudentReviewTest.java)
   
-## Video Directories
+### Video Directories
 
 1. **meetings**
    - **Description:** The meetings are uploaded to Google Drive because of GitHub size limits.
-   - **Access:** [View meetings](https://drive.google.com/drive/folders/1PToG_7kP7Dci9Uhobw_lCh_fWoREfJR8?usp=drive_link)
+   - **Access:** [View meetings](https://drive.google.com/drive/folders/1Cq73HC2Pps_y95YbZdOWnEZyr68kgx44?usp=drive_link)
 
 2. **screencasts**
    - **Description:** The screencasts are uploaded to Google Drive because of GitHub size limits. 
-   - **Access:** [View screencasts](https://drive.google.com/drive/folders/16_NYTNpl_iDdKgA62Vvs8zpfAz_DHYhM?usp=sharing)
-
-## Automated Testing
-
-1. **Tests Directory**
-   - **Access:** [View tests](https://github.com/sapai5/CSE360group/tree/main/test/test)
-   - **How To Run:** Simply open the project in eclipse, go to the test file, run the tests using the eclipse run button.
-   - **Screencasts:** [View ManualTesting Screencast](https://drive.google.com/file/d/1dXjNugYd3OZO0Q0h5IrawKgeltraJF3w/view?usp=drive_link)
-
-## How to Access Each File
-
-- Click on the provided links for each file and directory to view them directly on GitHub.
-- For compiled Java class files, you can download them and use a Java decompiler to view their contents.
+   - **Access:** [View screencasts](https://drive.google.com/drive/folders/1a9mD5kFiZmX8Dr01I9oCEeT6Jt4J-8PD?usp=drive_link)
 
 ## Group Members
  - Aryan Srivastava
@@ -93,7 +61,6 @@ The following are all files and directories that comprise this repo:
  - Saahir Khan
  - Sahil Pai
  - Sourish Tiwari
-
 
 ## License
 
