@@ -44,7 +44,13 @@ public class WelcomeLoginPage {
                     new StudentHomePage(studentDatabaseHelper).show(primaryStage);
                     break;
                 case "instruction":
-                    new InstructorHomePage(databaseHelper).show(primaryStage);
+				try {
+					studentDatabaseHelper.connectToDatabase();
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+                    new InstructorHomePage(studentDatabaseHelper, user.getUserName()).show(primaryStage);
                     break;
                 case "staff":
                     new StaffHomePage(databaseHelper).show(primaryStage);

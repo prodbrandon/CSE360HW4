@@ -33,12 +33,7 @@ public class ViewUserListPage {
 
         // List to hold all the users from the database
         List<User> users;
-        try {
-            users = databaseHelper.getUsers();
-        } catch (SQLException ex) {
-            errorLabel.setText("Error loading users: " + ex.getMessage());
-            users = new ArrayList<>();
-        }
+        users = databaseHelper.getUsers();
         ObservableList<User> observableUsers = FXCollections.observableArrayList(users);
         
         // Display all the users from the database in the list view
@@ -100,12 +95,7 @@ public class ViewUserListPage {
             confirmation.showAndWait().ifPresent(response -> {
                 if(response.equals("Yes")) {
                     databaseHelper.deleteUser(selectedUserName);
-					try {
-					    userListView.setItems(FXCollections.observableArrayList(databaseHelper.getUsers()));
-					} catch (SQLException ex) {
-					    errorLabel.setText("Error refreshing user list: " + ex.getMessage());
-					    return;
-					}
+					userListView.setItems(FXCollections.observableArrayList(databaseHelper.getUsers()));
 					errorLabel.setStyle("-fx-text-fill: green;");
 					errorLabel.setText("User has been deleted");
 					selectedUserLabel.setText("Selected User: None");
@@ -215,19 +205,14 @@ public class ViewUserListPage {
                 return;
             }
             
-            // Update the roles in the database 
-            try {
-                databaseHelper.updateUserRoles(selectedUserName, newRoles, currentUserName);
-                
-                // Update the list view with the changes made to roles
-                List<User> updatedUsers = databaseHelper.getUsers();
-                userListView.setItems(FXCollections.observableArrayList(updatedUsers));
-                
-                errorLabel.setStyle("-fx-text-fill: green;");
-                errorLabel.setText("Roles updated successfully");
-            } catch (SQLException ex) {
-                errorLabel.setText("Error updating roles: " + ex.getMessage());
-            }
+            databaseHelper.updateUserRoles(selectedUserName, newRoles, currentUserName);
+			
+			// Update the list view with the changes made to roles
+			List<User> updatedUsers = databaseHelper.getUsers();
+			userListView.setItems(FXCollections.observableArrayList(updatedUsers));
+			
+			errorLabel.setStyle("-fx-text-fill: green;");
+			errorLabel.setText("Roles updated successfully");
         });
         
         // Label to display the one-time password

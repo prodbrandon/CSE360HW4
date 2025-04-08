@@ -203,6 +203,17 @@ public class studentDatabase {
         		+ "content TEXT, "
                 + "FOREIGN KEY (reviewerId) REFERENCES reviewers(id))";
         statement.execute(reviewsTable);
+        
+        // Reviewer requests table
+        String reviewerRequestsTable = "CREATE TABLE IF NOT EXISTS reviewer_requests ("
+        	    + "id INT AUTO_INCREMENT PRIMARY KEY, "
+        	    + "user_id INT, "
+        	    + "justification TEXT, "
+        	    + "status VARCHAR(20) DEFAULT 'PENDING', "
+        	    + "instructor_comments TEXT, "
+        	    + "request_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+        	    + "FOREIGN KEY (user_id) REFERENCES cse360users(id))";
+        statement.execute(reviewerRequestsTable);
 
         // Feedback table
         String feedbackTable = "CREATE TABLE IF NOT EXISTS feedback ("
@@ -889,6 +900,56 @@ public class studentDatabase {
     		return pstmt.executeUpdate() > 0;
     	}
     }
+    
+    public void submitReviewerRequest(int userId, String justification) throws SQLException {
+        String sql = "INSERT INTO reviewer_requests (user_id, justification, status) VALUES (?, ?, 'PENDING')";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            pstmt.setString(2, justification);
+            pstmt.executeUpdate();
+        }
+    }
+
+    public List<ReviewerRequest> getPendingReviewerRequests() throws SQLException {
+        List<ReviewerRequest> requests = new ArrayList<>();
+        String sql = "SELECT r.*, u.userName FROM reviewer_requests r " +
+                     "JOIN cse360users u ON r.user_id = u.id " +
+                     "WHERE r.status = 'PENDING'";
+        
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                requests.add(new ReviewerRequest(
+                    rs.getInt("id"),
+                    rs.getInt("user_id"),
+                    rs.getString("userName"),
+                    rs.getString("justification"),
+                    rs.getTimestamp("request_date"),
+                    rs.getString("status"),
+                    rs.getString("instructor_comments")
+                ));
+            }
+        }
+        return requests;
+    }
+
+    public void updateReviewerRequestStatus(int requestId, String status, String comments) throws SQLException {
+        String sql = "UPDATE reviewer_requests SET status = ?, instructor_comments = ? WHERE id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, status);
+            pstmt.setString(2, comments);
+            pstmt.setInt(3, requestId);
+            pstmt.executeUpdate();
+        }
+    }
+
+    public void addReviewerRole(int userId) throws SQLException {
+        String sql = "UPDATE cse360users SET role = CONCAT(role, ',reviewer') WHERE id = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            pstmt.executeUpdate();
+        }
+    }
 
     // Feedback Management Methods
     
@@ -943,16 +1004,12 @@ public class studentDatabase {
     }
     
     public String getUserName(int userId) throws SQLException {
-    	String query = "SELECT * FROM cse360users WHERE id = ?";
+    	String query = "SELECT userName FROM cse360users WHERE id = ?";
     	try (PreparedStatement pstmt = connection.prepareStatement(query)) {
     		pstmt.setInt(1, userId);
     		ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                return rs.getString("userName");
-            }
-    	} 
-    	
-    	return null;
+            return rs.next() ? rs.getString("userName") : null;
+    	}
     }
     
     public int getReviewerId(int userId) throws SQLException {

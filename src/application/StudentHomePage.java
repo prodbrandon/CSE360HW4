@@ -737,18 +737,16 @@ public class StudentHomePage {
         // Add Request Reviewer Role button
         Button requestReviewerButton = new Button("Request to Become a Reviewer");
         requestReviewerButton.setOnAction(e -> {
-            try {
-                // Get the database helper for the request page
-                DatabaseHelper dbHelper = new DatabaseHelper();
-                dbHelper.connectToDatabase();
-                
-                // Navigate to the request page with the current username
-                new RequestReviewerRolePage(dbHelper, "testuser").show(primaryStage);
-            } catch (SQLException ex) {
-                ex.printStackTrace();
-                showError("Error opening reviewer request page: " + ex.getMessage());
-            }
-        });
+        	 try {
+                 // Get current user name from database
+                 int userId = studentDatabaseHelper.getUserId("testuser"); // Update with actual username if available
+                 String userName = studentDatabaseHelper.getUserName(userId);
+                 
+                 new ReviewerRequestManager(studentDatabaseHelper, userName, "student").show(primaryStage);
+             } catch (SQLException ex) {
+                 showAlert("Error", "Error opening reviewer request: " + ex.getMessage());
+             }
+         });
         
         myActivityLayout.getChildren().addAll(activityTabPane, requestReviewerButton);
         
@@ -1339,5 +1337,12 @@ public class StudentHomePage {
             e.printStackTrace();
             showError("Error updating clarification status: " + e.getMessage());
         }
+    }
+    
+    private void showAlert(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }
