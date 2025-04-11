@@ -44,15 +44,21 @@ public class WelcomeLoginPage {
                     new StudentHomePage(studentDatabaseHelper).show(primaryStage);
                     break;
                 case "instruction":
-				try {
-					studentDatabaseHelper.connectToDatabase();
-				} catch (SQLException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+					try {
+						studentDatabaseHelper.connectToDatabase();
+					} catch (SQLException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
                     new InstructorHomePage(studentDatabaseHelper, user.getUserName()).show(primaryStage);
                     break;
                 case "staff":
+                    // Updated to use the new StaffHomePage instead of the old bare-bones page
+                    try {
+                        studentDatabaseHelper.connectToDatabase();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
                     new StaffHomePage(databaseHelper).show(primaryStage);
                     break;
                 case "reviewer":

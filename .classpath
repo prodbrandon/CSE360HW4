@@ -11,11 +11,11 @@
 			<attribute name="module" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/javafx-sdk-23.01">
+	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/H2"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/javafx-sdk-23.0.1">
 		<attributes>
 			<attribute name="module" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/H2"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
