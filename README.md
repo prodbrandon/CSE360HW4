@@ -1,4 +1,4 @@
-# CSE360 Wednesday 21 TP3 Submission
+# CSE360 Individual Homework 4
 
 ## Repository Contents
 
@@ -8,59 +8,37 @@ The following are all files and directories that comprise this repo:
 
 1. **src/application**
    - **Description:** Directory containing the source files of the application folder.
-   - **Access:** [View src/application](https://github.com/sapai5/CSE360group/tree/main/src/application)
+   - **Access:** [View src/application](https://github.com/prodbrandon/CSE360HW4/tree/main/src/application)
 
 2. **src/databasePart1**
    - **Description:** Directory containing the original database helper.
-   - **Access:** [View src/databasePart1](https://github.com/sapai5/CSE360group/tree/main/src/databasePart1)
+   - **Access:** [View src/databasePart1](https://github.com/prodbrandon/CSE360HW4/tree/main/src/databasePart1)
 
 3. **doc/application**
     - **Description:** Directory containing the HTML Javadoc output for the application Java files.
-    - **Access:** [View doc/application](https://github.com/sapai5/CSE360group/tree/main/doc/application)
+    - **Access:** [View doc/application](https://github.com/prodbrandon/CSE360HW4/tree/main/doc/application)
 
-4. **Design Documents**
-    - **Description:** Directory containing the UML diagrams for the additional code for this submission. Uploaded to Google Drive to keep the GitHub repository clean.
-    - **Access:** [View design documents](https://drive.google.com/drive/folders/1WiizMi6TwIaJRi6o_yKokCfHbwrErDBK?usp=sharing) 
+### User Stories Implemented for HW4
 
-### Automated Testing Files
+   - **2.1.** As a staff member, I need to access a comprehensive view of all questions, answers, and reviews within the system to evaluate interactions between reviewers and students, ensuring a refined Q&A environment.
+   - **2.2.** As a staff member, I should have the authority to modify any question, answer, or review at my discretion to manage inappropriate content, including editing and removal capabilities that enable effective regulation of the Q&A platform.
+   - **2.3.** As a staff member, I require a dedicated communication channel to privately message other staff members, instructors, or administrators to address any emerging issues within the system.
+   - **2.4.** As a staff member, I expect a polished user interface comparable to both the student Q&A system and reviewer interface, providing clear visibility of all content and intuitive access to necessary actions and functions.
 
-1. **ReviewTesting.java**
+
+### Automated Testing Files for HW4
+
+1. **StaffHomePageTest.java**
     - **Description:** File containing the Review tests.
-    - **Access:** [View ReviewTesting.java](https://github.com/sapai5/CSE360group/tree/main/src/application/ReviewTesting.java)
+    - **Access:** [View StaffHomePageTest.java](https://github.com/prodbrandon/CSE360HW4/tree/main/src/application/StaffHomePageTest.java)
 
-2. **ReviewerSystemTests.java**
-    - **Description:** File containing the Reviewer Request System tests.
-    - **Access:** [View ReviewerRequestSystem.java](https://github.com/sapai5/CSE360group/tree/main/src/application/ReviewerSystemTests.java)
 
-3. **ReviewerMessageTest.java**
-    - **Description:** File containing the Review Messaging tests.
-    - **Access:** [View ReviewMessageTest.java](https://github.com/sapai5/CSE360group/tree/main/src/application/ReviewerMessageTest.java)
-
-4. **JunitTest.java**
-    - **Description:** File containing the Trusted Reviewer tests.
-    - **Access:** [View JunitTest.java](https://github.com/sapai5/CSE360group/tree/main/src/application/JunitTest.java)
-
-5. **StudentReviewTest.java**
-    - **Description:** File containing the Student Viewing Review tests.
-    - **Access:** [View StudentReviewTest.java](https://github.com/sapai5/CSE360group/tree/main/src/application/StudentReviewTest.java)
-  
 ### Video Directories
 
-1. **meetings**
-   - **Description:** The meetings are uploaded to Google Drive because of GitHub size limits.
-   - **Access:** [View meetings](https://drive.google.com/drive/folders/1Cq73HC2Pps_y95YbZdOWnEZyr68kgx44?usp=drive_link)
-
-2. **screencasts**
+1. **Screencast**
    - **Description:** The screencasts are uploaded to Google Drive because of GitHub size limits. 
    - **Access:** [View screencasts](https://drive.google.com/drive/folders/1a9mD5kFiZmX8Dr01I9oCEeT6Jt4J-8PD?usp=drive_link)
 
-## Group Members
- - Aryan Srivastava
- - Brandon Lim
- - Journey Hancock
- - Saahir Khan
- - Sahil Pai
- - Sourish Tiwari
 
 ## License
 
