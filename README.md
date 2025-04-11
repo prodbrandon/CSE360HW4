@@ -37,7 +37,7 @@ The following are all files and directories that comprise this repo:
 
 1. **Screencast**
    - **Description:** The screencasts are uploaded to Google Drive because of GitHub size limits. 
-   - **Access:** [View screencasts](https://drive.google.com/drive/folders/1a9mD5kFiZmX8Dr01I9oCEeT6Jt4J-8PD?usp=drive_link)
+   - **Access:** [View screencasts]([https://drive.google.com/drive/folders/1a9mD5kFiZmX8Dr01I9oCEeT6Jt4J-8PD?usp=drive_link](https://drive.google.com/file/d/17xKdpyx8lhWYH-F3fdM5Wah9KvsOwLZn/view?usp=sharing)
 
 
 ## License
